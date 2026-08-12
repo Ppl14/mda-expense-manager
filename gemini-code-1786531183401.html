@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="theme-color" content="#0D0D1A"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<title>MDA Expense Manager Pro</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  #login-screen { position:fixed; inset:0; background:#0D0D1A; z-index:999; display:flex; align-items:center; justify-content:center; padding:20px; }
+  #login-screen.hidden { display:none; }
+  .login-box { width:100%; max-width:340px; }
+  .login-box h1 { color:#E8D5A3; font-size:24px; text-align:center; margin-bottom:4px; }
+  .login-box p { color:#888; text-align:center; margin-bottom:24px; font-size:13px; }
+  .login-box input { width:100%; padding:14px; margin-bottom:12px; border-radius:10px; border:1px solid #2D2D4E; background:#1A1A2E; color:#EEE; font-size:15px; }
+  .login-box button { width:100%; padding:14px; border-radius:10px; border:none; background:#C9A84C; color:#0D0D1A; font-weight:700; font-size:15px; cursor:pointer; }
+  .login-err { color:#EC7063; font-size:13px; text-align:center; margin-top:10px; min-height:16px; }
+  .sync-badge { font-size:11px; padding:2px 8px; border-radius:20px; margin-left:8px; }
+  .sync-on { background:#27AE6033; color:#27AE60; }
+  .sync-off { background:#EC706333; color:#EC7063; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; padding:0; font-family:'Segoe UI',system-ui,sans-serif; background:#0D0D1A; color:#EEE; min-height:100vh; overscroll-behavior:none; padding-bottom:70px; }
+  input,select,button { font-family:inherit; }
+  input[type="date"],input[type="color"] { color-scheme:dark; }
+  select option { background:#1A1A2E; }
+  ::-webkit-scrollbar { width:0; }
+  .screen { display:none; }
+  .screen.active { display:block; }
+  .main-header { background:linear-gradient(135deg,#0D0D1A,#1A1A2E); padding:40px 20px 20px; border-bottom:1px solid #2D2D4E; position:relative; }
+  .refresh-top-btn { position:absolute; top:20px; right:20px; background:#2D2D4E; border:1px solid #C9A84C55; color:#C9A84C; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:4px; }
+  .brand-tag { font-size:11px; letter-spacing:3px; color:#C9A84C; text-transform:uppercase; margin-bottom:8px; }
+  .main-header h1 { margin:0; color:#E8D5A3; font-size:26px; font-weight:800; letter-spacing:-.5px; }
+  .main-header p { color:#666; margin:6px 0 0; font-size:14px; }
+  .trip-header { background:#1A1A2E; padding:40px 16px 16px; border-bottom:1px solid #2D2D4E; }
+  .trip-header-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .back-btn { background:none; border:none; color:#C9A84C; font-size:15px; cursor:pointer; padding:0; }
+  .trip-header-actions { display:flex; gap:8px; align-items:center; }
+  .edit-trip-btn { background:#2D2D4E; border:none; color:#C9A84C; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:13px; }
+  .delete-trip-btn { background:#EC706322; border:1px solid #EC706355; color:#EC7063; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:13px; }
+  .trip-header h2 { margin:0; color:#E8D5A3; font-size:20px; font-weight:800; }
+  .trip-header .sub { color:#888; font-size:13px; margin-top:3px; }
+  .stats-row { display:flex; gap:16px; margin-top:12px; }
+  .stat-val { font-weight:700; font-size:18px; }
+  .stat-lbl { color:#666; font-size:11px; }
+  .tabs { display:flex; background:#1A1A2E; border-bottom:1px solid #2D2D4E; }
+  .tab { flex:1; padding:12px 0; border:none; background:transparent; color:#555; font-weight:500; font-size:14px; cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; }
+  .tab.active { color:#E8D5A3; font-weight:700; border-bottom-color:#C9A84C; }
+  .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:#1A1A2E; border-top:1px solid #2D2D4E; display:flex; z-index:100; padding-bottom:env(safe-area-inset-bottom); }
+  .nav-item { flex:1; padding:12px 0; text-align:center; color:#888; font-size:12px; cursor:pointer; background:none; border:none; font-weight:600; }
+  .nav-item.active { color:#C9A84C; }
+  .nav-icon { font-size:20px; display:block; margin-bottom:4px; }
+  .content { padding:16px; }
+  .card { background:#1A1A2E; border-radius:14px; border:1px solid #2D2D4E; margin-bottom:12px; overflow:hidden; }
+  .trip-card { padding:16px; cursor:pointer; display:flex; justify-content:space-between; align-items:flex-start; }
+  .trip-card-content { flex:1; }
+  .trip-name { color:#E8D5A3; font-weight:700; font-size:17px; }
+  .trip-dest { color:#888; font-size:13px; margin-top:2px; }
+  .trip-date { color:#666; font-size:12px; margin-top:4px; }
+  .trip-card-right { text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .trip-amt { color:#EC7063; font-weight:700; font-size:16px; }
+  .trip-bal { font-size:12px; }
+  .leader-section-title { color:#C9A84C; font-size:15px; font-weight:700; margin:16px 0 8px 4px; display:flex; align-items:center; gap:6px; }
+  .day-header { padding:12px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #2D2D4E; }
+  .day-date { color:#C9A84C; font-weight:700; font-size:16px; }
+  .day-label { color:#888; font-size:13px; }
+  .day-right { display:flex; gap:6px; align-items:center; }
+  .day-total { color:#EC7063; font-weight:700; font-size:16px; }
+  .day-entries { padding:8px 12px; }
+  .entry-row { display:flex; justify-content:space-between; align-items:center; padding:9px 4px; border-bottom:1px solid #0D0D1A; }
+  .entry-left { flex:1; }
+  .entry-note { color:#888; font-size:12px; margin-top:3px; }
+  .entry-vendor { color:#4ECDC4; font-size:11px; margin-top:2px; font-weight:500; }
+  .entry-right { display:flex; align-items:center; gap:6px; }
+  .entry-amt { color:#EEE; font-weight:600; font-size:15px; }
+  .badge { border-radius:6px; padding:2px 8px; font-size:12px; font-weight:600; }
+  .btn { border:none; border-radius:12px; padding:12px 20px; font-size:15px; font-weight:700; cursor:pointer; transition:opacity .15s; width:100%; display:block; margin-top:6px; }
+  .btn-primary { background:linear-gradient(135deg,#C9A84C,#E8D5A3); color:#0D0D1A; }
+  .btn-success { background:#27AE60; color:#fff; }
+  .btn-ghost { background:#2D2D4E; color:#CCC; }
+  .btn-whatsapp { background:#25D366; color:#fff; font-size:16px; padding:14px; }
+  .btn-danger { background:#EC7063; color:#fff; }
+  .btn-inline { width:auto; display:inline-block; padding:9px 14px; font-size:13px; }
+  .btn-row { display:flex; gap:10px; margin-top:6px; }
+  .btn-row .btn { flex:1; margin-top:0; }
+  .icon-btn { background:#2D2D4E; border:none; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:13px; }
+  .icon-btn-x { background:none; border:none; color:#EC7063; cursor:pointer; font-size:20px; padding:0 4px; line-height:1; }
+  .form-group { margin-bottom:14px; }
+  .form-label { display:block; color:#AAA; font-size:13px; margin-bottom:6px; font-weight:500; }
+  .form-input,.form-select { width:100%; background:#0D0D1A; border:1px solid #333; border-radius:10px; padding:11px 14px; color:#EEE; font-size:15px; outline:none; box-sizing:border-box; }
+  .color-picker { padding:2px; height:40px; cursor:pointer; }
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.75); display:flex; align-items:flex-end; justify-content:center; z-index:1000; }
+  .modal-overlay.hidden { display:none; }
+  .modal-box { background:#1A1A2E; border-radius:20px 20px 0 0; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; padding:24px 20px 36px; box-shadow:0 -8px 40px rgba(0,0,0,.5); }
+  .modal-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+  .modal-title { margin:0; color:#E8D5A3; font-size:18px; font-weight:700; }
+  .modal-close { background:#2D2D4E; border:none; color:#999; border-radius:8px; width:32px; height:32px; cursor:pointer; font-size:20px; }
+  .fund-row { background:#1A1A2E; border-radius:12px; padding:12px 14px; margin-bottom:10px; border:1px solid #2D2D4E; display:flex; justify-content:space-between; align-items:center; }
+  .fund-name { color:#CCC; font-size:15px; font-weight:600; }
+  .fund-note { color:#888; font-size:13px; }
+  .fund-client { color:#F7DC6F; font-size:12px; margin-top:2px; font-weight:500; }
+  .fund-date { color:#666; font-size:12px; }
+  .fund-right { display:flex; align-items:center; gap:6px; }
+  .fund-amt { color:#27AE60; font-weight:700; font-size:16px; }
+  .fund-amt.out { color:#EC7063; }
+  .wallet-balance-box { font-size:32px; font-weight:800; text-align:center; margin:10px 0 20px; }
+  .wallet-stats { display:flex; justify-content:space-between; background:#0D0D1A; padding:12px; border-radius:10px; }
+  .summary-card { background:#1A1A2E; border-radius:14px; padding:16px; margin-bottom:14px; border:1px solid #2D2D4E; }
+  .summary-title { color:#C9A84C; font-weight:700; font-size:16px; margin-bottom:12px; }
+  .summary-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #0D0D1A; }
+  .recon-lbl { color:#AAA; }
+  .recon-val { font-weight:700; font-size:16px; }
+  .deficit-box { margin-top:12px; background:#EC706322; border:1px solid #EC706355; border-radius:8px; padding:10px 12px; color:#EC7063; font-size:13px; }
+  .report-month { font-size:18px; font-weight:700; color:#E8D5A3; margin-bottom:10px; border-bottom:1px solid #2D2D4E; padding-bottom:8px; }
+  .bar-track { background:#0D0D1A; border-radius:4px; height:5px; margin-top:4px; }
+  .bar-fill { height:100%; border-radius:4px; }
+  .empty { text-align:center; color:#555; padding:50px 20px; font-size:15px; }
+  .cat-item { display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #2D2D4E; }
+  .cat-info { display:flex; align-items:center; gap:10px; }
+  .cat-color-box { width:16px; height:16px; border-radius:4px; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <h1>Tour Captain Pro</h1>
+    <p>Maharashtra Desha Adventure</p>
+    <input type="email" id="login-email" placeholder="Email"/>
+    <input type="password" id="login-password" placeholder="Password"/>
+    <button id="login-btn" onclick="doLogin()">Log In</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <button class="nav-item active" id="nav-trips" onclick="switchMainScreen('screen-trips','nav-trips')"><span class="nav-icon">🏕️</span>Trips</button>
+  <button class="nav-item" id="nav-wallet" onclick="switchMainScreen('screen-wallet','nav-wallet')"><span class="nav-icon">👛</span>Wallet</button>
+  <button class="nav-item" id="nav-reports" onclick="switchMainScreen('screen-reports','nav-reports')"><span class="nav-icon">📊</span>Reports</button>
+  <button class="nav-item" id="nav-settings" onclick="switchMainScreen('screen-settings','nav-settings')"><span class="nav-icon">⚙️</span>Settings</button>
+</div>
+
+<div id="screen-trips" class="screen active">
+  <div class="main-header">
+    <button class="refresh-top-btn" onclick="fetchRemoteData()">🔄 Refresh Data</button>
+    <div class="brand-tag" id="main-brand-tag">Maharashtra Desha Adventure</div>
+    <h1>Expense Manager <span class="sync-badge sync-on" id="sync-badge">● Synced</span></h1>
+    <p>Organize tours, clients, and vendors.</p>
+  </div>
+  <div class="content">
+    <button class="btn btn-primary" onclick="openNewTripModal()" style="margin-bottom:20px">+ New Trip / Tour</button>
+    <div id="trip-list"></div>
+  </div>
+</div>
+
+<div id="screen-wallet" class="screen">
+  <div class="main-header">
+    <button class="refresh-top-btn" onclick="fetchRemoteData()">🔄 Refresh Data</button>
+    <h1>Global Wallet</h1><p>Manage general money outside of specific trips</p>
+  </div>
+  <div class="content">
+    <div class="summary-card">
+      <div class="summary-title" style="text-align:center;color:#888;">Available Balance</div>
+      <div class="wallet-balance-box" id="wallet-balance">₹0.00</div>
+      <div class="wallet-stats">
+        <div><span style="color:#888;font-size:12px;">Total In</span><br/><strong style="color:#27AE60;font-size:16px;" id="wallet-in">₹0</strong></div>
+        <div style="text-align:right;"><span style="color:#888;font-size:12px;">Total Out</span><br/><strong style="color:#EC7063;font-size:16px;" id="wallet-out">₹0</strong></div>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-bottom:20px;" id="wallet-actions-row">
+      <button class="btn btn-success" onclick="openGlobalTx('income')">⬇️ Add Income</button>
+      <button class="btn btn-danger" onclick="openGlobalTx('expense')">⬆️ Add Expense</button>
+    </div>
+    <h3 style="color:#E8D5A3;font-size:16px;margin-bottom:10px;">Recent Transactions</h3>
+    <div id="wallet-list"></div>
+  </div>
+</div>
+
+<div id="screen-reports" class="screen">
+  <div class="main-header">
+    <button class="refresh-top-btn" onclick="fetchRemoteData()">🔄 Refresh Data</button>
+    <h1>Monthly Reports</h1><p>Overall income and expense by month</p>
+  </div>
+  <div class="content" id="report-content"></div>
+</div>
+
+<div id="screen-settings" class="screen">
+  <div class="main-header">
+    <button class="refresh-top-btn" onclick="fetchRemoteData()">🔄 Refresh Data</button>
+    <h1>Settings</h1><p>Manage categories and data backup</p>
+  </div>
+  <div class="content">
+    <div class="summary-card">
+      <div class="summary-title" style="display:flex;justify-content:space-between;align-items:center;"><span>🏷️ Expense Categories</span><button class="icon-btn" style="color:#C9A84C" onclick="openModal('modal-add-cat')">+ Add</button></div>
+      <div id="settings-categories-list"></div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-title">💾 Data Backup & Restore</div>
+      <p style="font-size:13px;color:#888;margin-top:0;">Download your data to back it up, or upload a backup file to restore it.</p>
+      <button class="btn btn-ghost" onclick="exportData()">⬇️ Download Backup (JSON)</button>
+      <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)"/>
+      <button class="btn btn-ghost" style="margin-top:10px" onclick="document.getElementById('import-file').click()">⬆️ Restore Backup</button>
+      <button class="btn btn-danger" style="margin-top:30px" onclick="clearAllData()">🗑️ Factory Reset (Wipe All Data)</button>
+    </div>
+    <div class="summary-card">
+      <div class="summary-title">👤 Account</div>
+      <p style="font-size:13px;color:#888;margin-top:0;" id="settings-account-info"></p>
+      <button class="btn btn-ghost" onclick="fetchRemoteData()">🔄 Sync Now</button>
+      <button class="btn btn-danger" style="margin-top:10px" onclick="logout()">🚪 Log Out</button>
+    </div>
+  </div>
+</div>
+
+<div id="screen-trip" class="screen">
+  <div class="trip-header">
+    <div class="trip-header-top">
+      <button class="back-btn" onclick="goBackToTrips()">← Back</button>
+      <div class="trip-header-actions">
+        <button class="edit-trip-btn" onclick="openEditTrip()">✏️ Edit</button>
+        <button class="delete-trip-btn" onclick="deleteCurrentTrip()">🗑️ Delete</button>
+      </div>
+    </div>
+    <h2 id="th-name"></h2><div class="sub" id="th-sub"></div>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-val" id="th-spent" style="color:#EC7063"></div><div class="stat-lbl">Total Spent</div></div>
+      <div class="stat"><div class="stat-val" id="th-funds" style="color:#27AE60"></div><div class="stat-lbl">Total Funds</div></div>
+      <div class="stat"><div class="stat-val" id="th-bal"></div><div class="stat-lbl">Balance</div></div>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTripTab('days')" id="tab-days">📅 Days</button>
+    <button class="tab" onclick="switchTripTab('funds')" id="tab-funds">💵 Funds</button>
+    <button class="tab" onclick="switchTripTab('summary')" id="tab-summary">📊 Summary</button>
+  </div>
+  <div class="content" id="tab-content"></div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-global-tx" onclick="closeModal('modal-global-tx')"><div class="modal-box" onclick="event.stopPropagation()">
+  <div class="modal-head"><h3 class="modal-title" id="gtx-title">Add Transaction</h3><button class="modal-close" onclick="closeModal('modal-global-tx')">×</button></div>
+  <input type="hidden" id="gtx-id"/><input type="hidden" id="gtx-type"/>
+  <div class="form-group"><label class="form-label">Amount (₹)</label><input class="form-input" type="number" id="gtx-amt" inputmode="numeric"/></div>
+  <div class="form-group"><label class="form-label" id="gtx-source-lbl">Source / Payee</label><input class="form-input" id="gtx-source" placeholder="e.g. Office Advance, EMI, Bus Agency"/></div>
+  <div class="form-group"><label class="form-label">Note</label><input class="form-input" id="gtx-note" placeholder="e.g. Received for multiple trips"/></div>
+  <div class="form-group"><label class="form-label">Date</label><input class="form-input" type="date" id="gtx-date"/></div>
+  <button class="btn btn-primary" onclick="saveGlobalTx()" id="gtx-save-btn">Save</button>
+</div></div>
+
+<div class="modal-overlay hidden" id="modal-new-trip" onclick="closeModal('modal-new-trip')"><div class="modal-box" onclick="event.stopPropagation()">
+  <div class="modal-head"><h3 class="modal-title">New Trip</h3><button class="modal-close" onclick="closeModal('modal-new-trip')">×</button></div>
+  <div class="form-group"><label class="form-label">Trip Name *</label><input class="form-input" id="nt-name" placeholder="e.g. Kedarnath Yatra"/></div>
+  <div class="form-group"><label class="form-label">Destination</label><input class="form-input" id="nt-dest" placeholder="e.g. Kedarnath"/></div>
+  <div class="form-group" id="group-assign-leader"><label class="form-label">Assign Trip Leader</label><select class="form-select" id="nt-leader"></select></div>
+  <div class="form-group"><label class="form-label">Start Date</label><input class="form-input" type="date" id="nt-date"/></div>
+  <div class="form-group"><label class="form-label">No. of Customers</label><input class="form-input" type="number" id="nt-cust"/></div>
+  <button class="btn btn-primary" onclick="createTrip()">Create Trip</button>
+</div></div>
+
+<div class="modal-overlay hidden" id="modal-edit-trip" onclick="closeModal('modal-edit-trip')"><div class="modal-box" onclick="event.stopPropagation()">
+  <div class="modal-head"><h3 class="modal-title">✏️ Edit Trip</h3><button class="modal-close" onclick="closeModal('modal-edit-trip')">×</button></div>
+  <div class="form-group"><label class="form-label">Trip Name</label><input class="form-input" id="et-name"/></div>
+  <div class="form-group"><label class="form-label">Destination</label><input class="form-input" id="et-dest"/></div>
+  <div class="form-group" id="group-edit-leader"><label class="form-label">Assign Trip Leader</label><select class="form-select" id="et-leader"></select></div>
+  <div class="form-group"><label class="form-label">Start Date</label><input class="form-input" type="date" id="et-date"/></div>
+  <div class="form-group"><label class="form-label">No. of Customers</label><input class="form-input" type="number" id="et-cust"/></div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('modal-edit-trip')">Cancel</button><button class="btn btn-primary" onclick="saveEditTrip()">Save Changes</button></div>
+</div></div>
+
+<div class="modal-overlay hidden" id="modal-add-day" onclick="closeModal('modal-add-day')"><div class="modal-box" onclick="event.stopPropagation()">
+  <div class="modal-head"><h3 class="modal-title">Add Day</h3><button class="modal-close" onclick="closeModal('modal-add-day')">×</button></div>
+  <div class="form-group"><label class="form-label">Date</label><input class="form-input" type="date" id="ad-date"/></div>
+  <div class="form-group"><label class="form-label">Label (optional)</label><input class="form-input" id="ad-label" placeholder="e.g. Arrival Day"/></div>
+  <button class="btn btn-primary" onclick="addDay()">Add Day</button>
+</div></div>
+
+<div class="modal-overlay hidden" id="modal-add-entry" onclick="closeModal('modal-add-entry')"><div class="modal-box" onclick="event.stopPropagation()">
+  <div class="modal-head"><h3 class="modal-title">Add Expense</h3><button class="modal-close" onclick="closeModal('modal-add-entry')">×</button></div>
+  <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="ae-cat"></select></div>
+  <div class="form-group"><label class="form-label">Amount (₹)</label><input class="form-input" type="number" id="ae-amt" placeholder="0" inputmode="numeric"/></div>
+  <div class="form-group"><label class="form-label">Vendor / Payee</label><input class="form-input" id="ae-vendor" placeholder="e.g. Ramesh Transport, Hotel Taj"/></div>
+  <div class="form-group"><label class="form-label">Note / Description</label><input class="form-input" id="ae-note" placeholder="e.g. Dinner for 15 pax"/></div>
+  <div class="form-group"><label class="form-label">Date</label><input class="form-input" type="date" id="ae-date"/></div>
+  <button class="btn btn-primary" onclick="addEntry()">Add Expense</button>
+</div></div>
+
+<div class="modal-overlay hidden" id="modal-edit-entry" onclick="closeModal('modal-edit-entry')"><div class="modal-box" onclick="event.stopPropagation()">
+  <div class="modal-head"><h3 class="modal-title">✏️ Edit Expense</h3><button class="modal-close" onclick="closeModal('modal-edit-entry')">×</button></div>
+  <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="ee-cat"></select></div>
+  <div class="form-group"><label class="form-label">Amount (₹)</label><input class="form-input" type="number" id="ee-amt" inputmode="numeric"/></div>
+  <div class="form-group"><label class="form-label">Vendor / Payee</label><input class="form-input" id="ee-vendor"/></div>
+  <div class="form-group"><label class="form-label">Note / Description</label><input class="form-input" id="ee-note"/></div>
+  <div class="form-group"><label class="form-label">Date</label><input class="form-input" type="date" id="ee-date"/></div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('modal-edit-entry')">Cancel</button><button class="btn btn-primary" onclick="saveEditEntry()">Save Changes</button></div>
+</div></div>
+
+<div class="modal-overlay hidden" id="modal-add-fund" onclick="closeModal('modal-add-fund')"><div class="modal-box" onclick="event.stopPropagation()">
+  <div class="modal-head"><h3 class="modal-title">Add Fund / Collection</h3><button class="modal-close" onclick="closeModal('modal-add-fund')">×</button></div>
+  <div class="form-group"><label class="form-label">Fund Type</label><select class="form-select" id="af-type">
+    <option value="collection">💵 Client Collection</option><option value="company_advance">🏢 Company Advance</option><option value="own_pocket">👛 My Own Money</option><option value="refund">↩️ Refund Received</option>
+  </select></div>
+  <div class="form-group"><label class="form-label">Amount (₹)</label><input class="form-input" type="number" id="af-amt" placeholder="0" inputmode="numeric"/></div>
+  <div class="form-group"><label class="form-label">Client / Source Name</label><input class="form-input" id="af-client" placeholder="e.g. Rohit Kumar, MDA Office"/></div>
+  <div class="form-group"><label class="form-label">Note</label><input class="form-input" id="af-note" placeholder="e.g. Final payment"/></div>
+  <div class="form-group"><label class="form-label">Date</label><input class="form-input" type="date" id="af-date"/></div>
+  <button class="btn btn-primary" onclick="addFund()">Add Fund</button>
+</div></div>
+
+<div class="modal-overlay hidden" id="modal-edit-fund" onclick="closeModal('modal-edit-fund')"><div class="modal-box" onclick="event.stopPropagation()">
+  <div class="modal-head"><h3 class="modal-title">✏️ Edit Fund</h3><button class="modal-close" onclick="closeModal('modal-edit-fund')">×</button></div>
+  <div class="form-group"><label class="form-label">Fund Type</label><select class="form-select" id="ef-type">
+    <option value="collection">💵 Client Collection</option><option value="company_advance">🏢 Company Advance</option><option value="own_pocket">👛 My Own Money</option><option value="refund">↩️ Refund Received</option>
+  </select></div>
+  <div class="form-group"><label class="form-label">Amount (₹)</label><input class="form-input" type="number" id="ef-amt" inputmode="numeric"/></div>
+  <div class="form-group"><label class="form-label">Client / Source Name</label><input class="form-input" id="ef-client"/></div>
+  <div class="form-group"><label class="form-label">Note</label><input class="form-input" id="ef-note"/></div>
+  <div class="form-group"><label class="form-label">Date</label><input class="form-input" type="date" id="ef-date"/></div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('modal-edit-fund')">Cancel</button><button class="btn btn-primary" onclick="saveEditFund()">Save Changes</button></div>
+</div></div>
+
+<div class="modal-overlay hidden" id="modal-add-cat" onclick="closeModal('modal-add-cat')"><div class="modal-box" onclick="event.stopPropagation()">
+  <div class="modal-head"><h3 class="modal-title" id="mc-title">New Category</h3><button class="modal-close" onclick="closeModal('modal-add-cat')">×</button></div>
+  <input type="hidden" id="mc-id"/>
+  <div class="form-group"><label class="form-label">Label (Include Emoji!)</label><input class="form-input" id="mc-label" placeholder="e.g. 🚂 Train"/></div>
+  <div class="form-group"><label class="form-label">Color</label><input class="form-input color-picker" type="color" id="mc-color" value="#45B7D1"/></div>
+  <button class="btn btn-primary" onclick="saveCategory()">Save Category</button>
+</div></div>
+
+<script>
+const DEFAULT_CATEGORIES=[
+{id:"food",label:"🍽️ Food",color:"#FF6B35"},{id:"hotel",label:"🏨 Hotel",color:"#4ECDC4"},{id:"bus",label:"🚌 Bus / Travel",color:"#45B7D1"},{id:"vendor",label:"🏢 Local Vendor",color:"#96CEB4"},{id:"personal",label:"👤 Personal",color:"#FFEAA7"},{id:"ticket",label:"🎫 Tickets/Entry",color:"#DDA0DD"},{id:"misc",label:"📦 Miscellaneous",color:"#D7DBDD"}];
+const FUND_LABELS={company_advance:"🏢 Company Advance",collection:"💵 Client Collection",own_pocket:"👛 My Own Money",refund:"↩️ Refund Received"};
+const SK="mda_expense_v4";
+function loadData(){try{const r=localStorage.getItem(SK);let db=r?JSON.parse(r):{trips:[],categories:DEFAULT_CATEGORIES,globalFunds:[],leaders:[]};if(!db.categories)db.categories=DEFAULT_CATEGORIES;if(!db.globalFunds)db.globalFunds=[];if(!db.leaders)db.leaders=[];return db}catch(e){return{trips:[],categories:DEFAULT_CATEGORIES,globalFunds:[],leaders:[]}}}
+function saveData(){try{localStorage.setItem(SK,JSON.stringify(DB))}catch(e){}}
+let DB=loadData(),currentTripId=null,currentTab="days",_addEntryDayId=null,_editEntryDayId=null,_editEntryId=null,_editFundId=null;
+const SUPABASE_URL="https://ckgihbgxvrosppeforgu.supabase.co";
+const SUPABASE_KEY="sb_publishable_NvWWL7_RNTGtWWt5WFMLYQ_s8sVekUC";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null,isOnline=navigator.onLine;
+window.addEventListener("online",()=>{isOnline=true;updateSyncBadge();fetchRemoteData()});
+window.addEventListener("offline",()=>{isOnline=false;updateSyncBadge()});
+function updateSyncBadge(){const el=document.getElementById("sync-badge");if(!el)return;el.textContent=isOnline?"● Synced":"● Offline (saved locally)";el.className="sync-badge "+(isOnline?"sync-on":"sync-off")}
+
+async function doLogin() {
+  const email = document.getElementById("login-email").value.trim(),
+        password = document.getElementById("login-password").value,
+        errEl = document.getElementById("login-err");
+
+  errEl.textContent = "";
+
+  if (!email || !password) {
+    errEl.textContent = "Enter email and password";
+    return;
+  }
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    errEl.textContent = error.message;
+    return;
+  }
+
+  const userId = data.session?.user?.id;
+  if (!userId) {
+    errEl.textContent = "Login succeeded but no session user id found.";
+    return;
+  }
+
+  await afterLogin(userId);
+}
+
+async function afterLogin(userId) {
+  const { data: authUser, error: authErr } = await sb.auth.getUser();
+  if (authErr) {
+    document.getElementById("login-err").textContent = authErr.message;
+    return;
+  }
+
+  const currentId = authUser?.user?.id || userId;
+
+  let { data: profile, error: profileError } = await sb
+    .from("profiles")
+    .select("*")
+    .eq("id", currentId)
+    .single();
+
+  if (profileError || !profile) {
+    document.getElementById("login-err").textContent =
+      "No profile found for this login (or blocked by RLS). Contact admin.";
+    await sb.auth.signOut();
+    return;
+  }
+
+  currentUser = {
+    id: profile.id,
+    role: profile.role,
+    company_id: profile.company_id,
+    full_name: profile.full_name
+  };
+
+  document.getElementById("login-screen").classList.add("hidden");
+  await fetchRemoteData();
+  
+  const tag = document.getElementById("main-brand-tag");
+  if (currentUser.role === "company") {
+    tag.textContent = "Maharashtra Desha Adventure · Company Admin (Hierarchy Top)";
+  } else {
+    tag.textContent = `Maharashtra Desha Adventure · Trip Leader: ${currentUser.full_name}`;
+    document.getElementById("wallet-actions-row").style.display = "none";
+  }
+}
+
+async function checkSession(){const{data}=await sb.auth.getSession();if(data.session&&data.session.user)await afterLogin(data.session.user.id)}
+function logout(){sb.auth.signOut();location.reload()}
+
+async function fetchRemoteData(){
+  if(!currentUser)return;
+  try{
+    const[{data:trips},{data:cats},{data:days},{data:expenses},{data:funds},{data:profiles}]=await Promise.all([
+      sb.from("trips").select("*").order("created_at"),
+      sb.from("expense_categories").select("*").order("created_at"),
+      sb.from("trip_days").select("*"),
+      sb.from("expenses").select("*"),
+      sb.from("trip_funds").select("*"),
+      sb.from("profiles").select("id, full_name, role")
+    ]);
+    
+    const profileMap = {};
+    if(profiles) {
+      DB.leaders = profiles.filter(p => p.role === 'leader' || p.role === 'company');
+      profiles.forEach(p => profileMap[p.id] = p.full_name);
+    }
+
+    if(cats)DB.categories=cats.map(c=>({id:c.id,label:c.label,color:c.color}));
+    if(trips)DB.trips=trips.map(t=>{
+      const tDays=(days||[]).filter(d=>d.trip_id===t.id).map(d=>({id:d.id,date:d.day_date,label:d.label||"",entries:(expenses||[]).filter(e=>e.day_id===d.id).map(e=>({id:e.id,category:e.category_id,amount:e.amount,vendor:e.vendor||"",note:e.note||"",date:e.expense_date}))})).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+      const tFunds=(funds||[]).filter(f=>f.trip_id===t.id).map(f=>({id:f.id,type:f.fund_type,amount:f.amount,client:f.client||"",note:f.note||"",date:f.fund_date}));
+      return{
+        id:t.id,
+        name:t.name,
+        destination:t.destination||"",
+        date:t.trip_date,
+        customers:t.customers,
+        leader_id:t.leader_id,
+        leader_name: profileMap[t.leader_id] || "Assigned Leader",
+        days:tDays,
+        funds:tFunds
+      };
+    });
+    saveData();isOnline=true;updateSyncBadge();renderTripList();if(currentTripId){renderTripHeader();switchTripTab(currentTab)}
+  }catch(e){isOnline=false;updateSyncBadge()}
+}
+
+const genId=()=>Math.random().toString(36).substr(2,9),todayStr=()=>new Date().toISOString().split("T")[0],fmt=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2}),getTrip=()=>DB.trips.find(t=>t.id===currentTripId);
+function getMonthStats(moStr){let inc=0,exp=0;DB.trips.forEach(t=>{t.days.forEach(d=>d.entries.forEach(e=>{if(e.date&&e.date.startsWith(moStr))exp+=Number(e.amount)}));t.funds.forEach(f=>{if(f.date&&f.date.startsWith(moStr))inc+=Number(f.amount)})});DB.globalFunds.forEach(f=>{if(f.date&&f.date.startsWith(moStr)){if(f.type==="income")inc+=Number(f.amount);if(f.type==="expense")exp+=Number(f.amount)}});return{income:inc,expense:exp,balance:inc-exp}}
+function openModal(id){document.getElementById(id).classList.remove("hidden")}function closeModal(id){document.getElementById(id).classList.add("hidden")}
+function switchMainScreen(screenId,navId){document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById(screenId).classList.add("active");if(navId){document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));document.getElementById(navId).classList.add("active")}window.scrollTo(0,0);if(screenId==="screen-trips")renderTripList();if(screenId==="screen-wallet")renderWallet();if(screenId==="screen-reports")renderReports();if(screenId==="screen-settings")renderSettings()}
+function renderWallet(){const el=document.getElementById("wallet-list");let totalIn=0,totalOut=0;const funds=[...DB.globalFunds].sort((a,b)=>b.date.localeCompare(a.date));if(!funds.length)el.innerHTML='<div class="empty">No global transactions yet.<br/>Log non-trip money here.</div>';else{el.innerHTML=funds.map(f=>{if(f.type==="income")totalIn+=Number(f.amount);if(f.type==="expense")totalOut+=Number(f.amount);const isIncome=f.type==="income";return`<div class="fund-row"><div><div class="fund-name">${isIncome?"⬇️ Income":"⬆️ Expense"}</div>${f.source?`<div class="fund-client">${f.source}</div>`:""}${f.note?`<div class="fund-note">${f.note}</div>`:""}<div class="fund-date">${f.date||""}</div></div><div class="fund-right"><span class="fund-amt ${isIncome?"":"out"}">${isIncome?"+":"-"}${fmt(f.amount)}</span>${currentUser&&currentUser.role==="company"?`<button class="icon-btn" style="color:#C9A84C" onclick="openEditGlobalTx('${f.id}')">✏️</button><button class="icon-btn-x" onclick="deleteGlobalTx('${f.id}')">×</button>`:""}</div></div>`}).join("")}const balance=totalIn-totalOut;document.getElementById("wallet-balance").textContent=fmt(balance);document.getElementById("wallet-balance").style.color=balance>=0?"#F7DC6F":"#EC7063";document.getElementById("wallet-in").textContent=fmt(totalIn);document.getElementById("wallet-out").textContent=fmt(totalOut)}
+function openGlobalTx(type){if(currentUser&&currentUser.role!=="company")return;document.getElementById("gtx-id").value="";document.getElementById("gtx-type").value=type;document.getElementById("gtx-title").textContent=type==="income"?"Add General Income":"Add General Expense";document.getElementById("gtx-source-lbl").textContent=type==="income"?"Source (From who/where)":"Payee (To who/where)";document.getElementById("gtx-amt").value="";document.getElementById("gtx-source").value="";document.getElementById("gtx-note").value="";document.getElementById("gtx-date").value=todayStr();const btn=document.getElementById("gtx-save-btn");btn.className=type==="income"?"btn btn-success":"btn btn-danger";openModal("modal-global-tx")}
+function openEditGlobalTx(id){const f=DB.globalFunds.find(x=>x.id===id);if(!f)return;document.getElementById("gtx-id").value=f.id;document.getElementById("gtx-type").value=f.type;document.getElementById("gtx-title").textContent="Edit Transaction";document.getElementById("gtx-source-lbl").textContent=f.type==="income"?"Source":"Payee";document.getElementById("gtx-amt").value=f.amount;document.getElementById("gtx-source").value=f.source||"";document.getElementById("gtx-note").value=f.note||"";document.getElementById("gtx-date").value=f.date||"";document.getElementById("gtx-save-btn").className="btn btn-primary";openModal("modal-global-tx")}
+function saveGlobalTx(){const id=document.getElementById("gtx-id").value,amt=document.getElementById("gtx-amt").value;if(!amt)return;const data={type:document.getElementById("gtx-type").value,amount:amt,source:document.getElementById("gtx-source").value.trim(),note:document.getElementById("gtx-note").value.trim(),date:document.getElementById("gtx-date").value};if(id){const idx=DB.globalFunds.findIndex(x=>x.id===id);DB.globalFunds[idx]={...DB.globalFunds[idx],...data}}else DB.globalFunds.push({id:genId(),...data});saveData();closeModal("modal-global-tx");renderWallet()}
+function deleteGlobalTx(id){if(!confirm("Delete this transaction?"))return;DB.globalFunds=DB.globalFunds.filter(x=>x.id!==id);saveData();renderWallet()}
+function renderSettings(){const list=document.getElementById("settings-categories-list");list.innerHTML=DB.categories.map(c=>`<div class="cat-item"><div class="cat-info"><div class="cat-color-box" style="background:${c.color}"></div><span style="color:#EEE;font-size:14px">${c.label}</span></div><div>${currentUser&&currentUser.role==="company"?`<button class="icon-btn" style="color:#C9A84C" onclick="openEditCategory('${c.id}')">✏️</button><button class="icon-btn-x" onclick="deleteCategory('${c.id}')">×</button>`:""}</div></div>`).join("");const info=document.getElementById("settings-account-info");if(info&&currentUser)info.textContent=`${currentUser.full_name} · Role: ${currentUser.role}`}
+function openEditCategory(id){const c=DB.categories.find(x=>x.id===id);document.getElementById("mc-title").textContent="Edit Category";document.getElementById("mc-id").value=c.id;document.getElementById("mc-label").value=c.label;document.getElementById("mc-color").value=c.color;openModal("modal-add-cat")}
+async function saveCategory(){const id=document.getElementById("mc-id").value,label=document.getElementById("mc-label").value.trim(),color=document.getElementById("mc-color").value;if(!label)return;if(id){const c=DB.categories.find(x=>x.id===id);c.label=label;c.color=color;if(isOnline)await sb.from("expense_categories").update({label,color}).eq("id",id)}else{if(isOnline&&currentUser){const{data,error}=await sb.from("expense_categories").insert({company_id:currentUser.company_id,label,color}).select().single();if(!error&&data)DB.categories.push({id:data.id,label,color});else DB.categories.push({id:"cat_"+genId(),label,color})}else DB.categories.push({id:"cat_"+genId(),label,color})}document.getElementById("mc-id").value="";document.getElementById("mc-label").value="";saveData();closeModal("modal-add-cat");renderSettings()}
+async function deleteCategory(id){if(!confirm("Delete this category?"))return;DB.categories=DB.categories.filter(x=>x.id!==id);if(isOnline)await sb.from("expense_categories").delete().eq("id",id);saveData();renderSettings()}
+function exportData(){const dataStr="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(DB)),el=document.createElement("a");el.setAttribute("href",dataStr);el.setAttribute("download",`mda_expense_backup_${todayStr()}.json`);document.body.appendChild(el);el.click();el.remove()}
+function importData(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const importedData=JSON.parse(e.target.result);if(importedData.trips&&importedData.categories){if(!importedData.globalFunds)importedData.globalFunds=[];DB=importedData;saveData();alert("Backup restored successfully!");renderSettings()}else alert("Invalid backup file.")}catch(err){alert("Error reading file.")}};reader.readAsText(file)}
+function clearAllData(){if(confirm("🚨 WARNING: This will delete ALL trips, wallet records, and settings permanently. Are you absolutely sure?")){DB={trips:[],categories:DEFAULT_CATEGORIES,globalFunds:[],leaders:[]};saveData();alert("Data wiped clean.");switchMainScreen("screen-trips","nav-trips")}}
+function renderReports(){const content=document.getElementById("report-content"),months={};DB.trips.forEach(t=>{t.days.forEach(d=>d.entries.forEach(e=>{if(!e.date)return;const mo=e.date.substring(0,7);if(!months[mo])months[mo]={income:0,expense:0};months[mo].expense+=Number(e.amount)}));t.funds.forEach(f=>{if(!f.date)return;const mo=f.date.substring(0,7);if(!months[mo])months[mo]={income:0,expense:0};months[mo].income+=Number(f.amount)})});DB.globalFunds.forEach(f=>{if(!f.date)return;const mo=f.date.substring(0,7);if(!months[mo])months[mo]={income:0,expense:0};if(f.type==="income")months[mo].income+=Number(f.amount);if(f.type==="expense")months[mo].expense+=Number(f.amount)});const sortedMonths=Object.keys(months).sort((a,b)=>b.localeCompare(a));if(!sortedMonths.length){content.innerHTML='<div class="empty">No financial data to report yet.</div>';return}let html="";sortedMonths.forEach(mo=>{const data=months[mo],profit=data.income-data.expense,dateObj=new Date(mo+"-01"),moName=dateObj.toLocaleString("default",{month:"long",year:"numeric"});html+=`<div class="summary-card"><div class="report-month">📅 ${moName}</div><div class="summary-row"><span style="color:#CCC">Total Funds / Income</span><span style="color:#27AE60;font-weight:700">${fmt(data.income)}</span></div><div class="summary-row"><span style="color:#CCC">Total Expenses</span><span style="color:#EC7063;font-weight:700">${fmt(data.expense)}</span></div><div class="summary-row" style="border-top:1px solid #333;margin-top:8px;padding-top:12px"><span style="color:#E8D5A3;font-weight:bold">Net Balance</span><span style="color:${profit>=0?"#F7DC6F":"#EC7063"};font-weight:700;font-size:16px">${fmt(profit)}</span></div><button class="btn btn-whatsapp" style="margin-top:16px" onclick="shareMonthWhatsApp('${mo}')">📤 Share ${moName} Report</button></div>`});content.innerHTML=html}
+function shareMonthWhatsApp(moStr){const stats=getMonthStats(moStr),moName=new Date(moStr+"-01").toLocaleString("default",{month:"long",year:"numeric"});let msg=`*MONTHLY REPORT: ${moName.toUpperCase()}*\\n━━━━━━━━━━━━━━━\\n\\n`;let tripList=DB.trips.filter(t=>t.date&&t.date.startsWith(moStr));if(tripList.length){msg+="*TRIPS THIS MONTH:*\\n";tripList.forEach(t=>msg+=`• ${t.name} (${t.date})\\n`);msg+="\\n"}msg+=`*OVERALL FINANCIALS:*\\nTotal Income: ₹${stats.income.toLocaleString("en-IN")}\\nTotal Expense: ₹${stats.expense.toLocaleString("en-IN")}\\n*Net Balance: ₹${stats.balance.toLocaleString("en-IN")}* ${stats.balance>=0?"✅":"❌"}\\n\\n_Includes all trips and global wallet transactions._\\n_Reported by Maharashtra Desha Adventure_`;window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank")}
+
+function renderTripList(){
+  const el=document.getElementById("trip-list");
+  if(!DB.trips.length){
+    el.innerHTML='<div class="empty">No trips yet.</div>';
+    return;
+  }
+  
+  if(currentUser && currentUser.role === "company"){
+    let relevantTrips = DB.trips;
+    let html = `<div class="summary-card" style="border-color:#C9A84C;margin-bottom:16px;"><div class="summary-title" style="color:#C9A84C;">🏢 Maharashtra Desha Adventure · Company Admin (Hierarchy Top)</div><div style="font-size:13px;color:#888;">Viewing all operations across all leaders. Click any trip below to manage or reassign.</div></div>`;
+    
+    const leaderMap = {};
+    relevantTrips.forEach(trip => {
+      const lId = trip.leader_id || "unassigned";
+      if(!leaderMap[lId]) leaderMap[lId] = { name: trip.leader_name || "Unassigned", trips: [] };
+      leaderMap[lId].trips.push(trip);
+    });
+
+    Object.keys(leaderMap).forEach(lId => {
+      const group = leaderMap[lId];
+      html += `<div class="leader-section-title">👤 Leader: ${group.name}</div>`;
+      group.trips.forEach(trip => {
+        const spent = trip.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0);
+        const funds = trip.funds.reduce((s,f)=>s+Number(f.amount),0);
+        const bal = funds - spent;
+        html += `
+          <div class="card trip-card">
+            <div class="trip-card-content" onclick="openTrip('${trip.id}')">
+              <div class="trip-name">${trip.name}</div>
+              ${trip.destination?`<div class="trip-dest">📍 ${trip.destination}</div>`:""}
+              <div class="trip-date">🗓️ ${trip.date||""} · 👥 ${trip.customers||"?"} pax</div>
+            </div>
+            <div class="trip-card-right" onclick="openTrip('${trip.id}')">
+              <div class="trip-amt">${fmt(spent)}</div>
+              <div class="trip-bal" style="color:${bal>=0?"#27AE60":"#EC7063"}">Bal: ${fmt(bal)}</div>
+            </div>
+          </div>`;
+      });
+    });
+    el.innerHTML = html;
+  } else {
+    let myTrips = DB.trips.filter(t => t.leader_id === currentUser.id);
+    if(!myTrips.length){
+      el.innerHTML='<div class="empty">No trips assigned to you yet. You can also add a new trip below.</div>';
+      return;
+    }
+    el.innerHTML = myTrips.map(trip => {
+      const spent=trip.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0);
+      const funds=trip.funds.reduce((s,f)=>s+Number(f.amount),0);
+      const bal=funds-spent;
+      return `
+        <div class="card trip-card">
+          <div class="trip-card-content" onclick="openTrip('${trip.id}')">
+            <div class="trip-name">${trip.name}</div>
+            ${trip.destination?`<div class="trip-dest">📍 ${trip.destination}</div>`:""}
+            <div class="trip-date">🗓️ ${trip.date||""} · 👥 ${trip.customers||"?"} pax</div>
+          </div>
+          <div class="trip-card-right" onclick="openTrip('${trip.id}')">
+            <div class="trip-amt">${fmt(spent)}</div>
+            <div class="trip-bal" style="color:${bal>=0?"#27AE60":"#EC7063"}">Bal: ${fmt(bal)}</div>
+          </div>
+        </div>`;
+    }).join("");
+  }
+}
+
+function populateLeaderSelect(selectId, selectedLeaderId) {
+  const selectEl = document.getElementById(selectId);
+  if (!selectEl) return;
+  if (!DB.leaders || !DB.leaders.length) {
+    selectEl.innerHTML = `<option value="${currentUser ? currentUser.id : ''}">${currentUser ? currentUser.full_name : 'Current User'}</option>`;
+    return;
+  }
+  selectEl.innerHTML = DB.leaders.map(l => `<option value="${l.id}" ${l.id === selectedLeaderId ? 'selected' : ''}>${l.full_name} (${l.role})</option>`).join("");
+}
+
+function openNewTripModal() {
+  document.getElementById("nt-name").value = "";
+  document.getElementById("nt-dest").value = "";
+  document.getElementById("nt-date").value = todayStr();
+  document.getElementById("nt-cust").value = "";
+  
+  const assignGroup = document.getElementById("group-assign-leader");
+  if(currentUser && currentUser.role === "company"){
+    assignGroup.style.display = "block";
+    populateLeaderSelect("nt-leader", currentUser.id);
+  } else {
+    assignGroup.style.display = "none";
+  }
+  openModal("modal-new-trip");
+}
+
+async function createTrip(){
+  const name=document.getElementById("nt-name").value.trim();
+  if(!name)return;
+  const destination=document.getElementById("nt-dest").value.trim();
+  let leaderId = currentUser ? currentUser.id : null;
+  if(currentUser && currentUser.role === "company"){
+    leaderId = document.getElementById("nt-leader").value || currentUser.id;
+  }
+  const date=document.getElementById("nt-date").value;
+  const customers=document.getElementById("nt-cust").value;
+
+  if(isOnline&&currentUser){
+    const{data,error}=await sb.from("trips").insert({
+      company_id:currentUser.company_id,
+      leader_id:leaderId,
+      name,
+      destination,
+      trip_date:date||null,
+      customers:customers||null
+    }).select().single();
+    
+    if(error){alert("Could not save trip online: "+error.message);return}
+    const assignedLeader = DB.leaders.find(l => l.id === leaderId);
+    DB.trips.push({
+      id:data.id,
+      name,
+      destination,
+      date,
+      customers,
+      leader_id:leaderId,
+      leader_name: assignedLeader ? assignedLeader.full_name : "Leader",
+      days:[],
+      funds:[]
+    });
+  } else {
+    const assignedLeader = DB.leaders.find(l => l.id === leaderId);
+    DB.trips.push({
+      id:genId(),
+      name,
+      destination,
+      date,
+      customers,
+      leader_id:leaderId,
+      leader_name: assignedLeader ? assignedLeader.full_name : "Leader",
+      days:[],
+      funds:[]
+    });
+  }
+  saveData();
+  closeModal("modal-new-trip");
+  renderTripList();
+}
+
+function openTrip(id){currentTripId=id;switchMainScreen("screen-trip",null);renderTripHeader();switchTripTab("days")}
+function goBackToTrips(){currentTripId=null;switchMainScreen("screen-trips","nav-trips")}
+function renderTripHeader(){
+  const t=getTrip();
+  if(!t)return;
+  const spent=t.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0),funds=t.funds.reduce((s,f)=>s+Number(f.amount),0);
+  document.getElementById("th-name").textContent=t.name;
+  document.getElementById("th-sub").textContent=(t.destination?"📍 "+t.destination+" · ":"")+"👥 "+(t.customers||"?")+" pax · 👤 "+(t.leader_name||"Leader");
+  document.getElementById("th-spent").textContent=fmt(spent);
+  document.getElementById("th-funds").textContent=fmt(funds);
+  document.getElementById("th-bal").textContent=fmt(funds-spent);
+  document.getElementById("th-bal").style.color=funds-spent>=0?"#F7DC6F":"#EC7063";
+}
+
+function openEditTrip(){
+  const t=getTrip();
+  if(!t)return;
+  document.getElementById("et-name").value=t.name;
+  document.getElementById("et-dest").value=t.destination||"";
+  document.getElementById("et-date").value=t.date||"";
+  document.getElementById("et-cust").value=t.customers||"";
+  
+  const editLeaderGroup = document.getElementById("group-edit-leader");
+  if(currentUser && currentUser.role === "company"){
+    editLeaderGroup.style.display = "block";
+    populateLeaderSelect("et-leader", t.leader_id);
+  } else {
+    editLeaderGroup.style.display = "none";
+  }
+  openModal("modal-edit-trip");
+}
+
+async function saveEditTrip(){
+  const t=getTrip();
+  if(!t)return;
+  t.name=document.getElementById("et-name").value.trim()||t.name;
+  t.destination=document.getElementById("et-dest").value.trim();
+  if(currentUser && currentUser.role === "company"){
+    t.leader_id=document.getElementById("et-leader").value;
+    const assignedLeader=DB.leaders.find(l=>l.id===t.leader_id);
+    if(assignedLeader)t.leader_name=assignedLeader.full_name;
+  }
+  t.date=document.getElementById("et-date").value;
+  t.customers=document.getElementById("et-cust").value;
+
+  if(isOnline){
+    const updateObj = {
+      name:t.name,
+      destination:t.destination,
+      trip_date:t.date||null,
+      customers:t.customers||null
+    };
+    if(currentUser && currentUser.role === "company") updateObj.leader_id = t.leader_id;
+    const{error}=await sb.from("trips").update(updateObj).eq("id",t.id);
+    if(error)alert("Could not update online: "+error.message);
+  }
+  saveData();
+  closeModal("modal-edit-trip");
+  renderTripHeader();
+  renderTripList();
+}
+
+async function deleteCurrentTrip(){
+  const t = getTrip();
+  if(!t) return;
+  if(!confirm(`Are you sure you want to delete "${t.name}"? This will delete all associated days, expenses, and funds.`)) return;
+
+  if(isOnline){
+    await sb.from("expenses").delete().eq("trip_id", t.id);
+    await sb.from("trip_days").delete().eq("trip_id", t.id);
+    await sb.from("trip_funds").delete().eq("trip_id", t.id);
+    const { error } = await sb.from("trips").delete().eq("id", t.id);
+    if(error){
+      alert("Could not delete trip online: " + error.message);
+      return;
+    }
+  }
+
+  DB.trips = DB.trips.filter(x => x.id !== t.id);
+  saveData();
+  goBackToTrips();
+}
+
+function switchTripTab(tab){currentTab=tab;document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));document.getElementById("tab-"+tab).classList.add("active");if(tab==="days")renderDaysTab();else if(tab==="funds")renderFundsTab();else renderSummaryTab()}
+function populateCatSelect(id,selectedId){document.getElementById(id).innerHTML=DB.categories.map(c=>`<option value="${c.id}" ${c.id===selectedId?"selected":""}>${c.label}</option>`).join("")}
+function renderDaysTab(){const t=getTrip();if(!t)return;let html=`<button class="btn btn-primary" style="margin-bottom:16px" onclick="openAddDay()">+ Add Day</button>`;if(!t.days.length)html+='<div class="empty">No days added yet.</div>';else t.days.forEach(day=>{const dayTotal=day.entries.reduce((s,e)=>s+Number(e.amount),0);html+=`<div class="card" style="margin-bottom:14px"><div class="day-header"><div><div class="day-date">📅 ${day.date}</div>${day.label?`<div class="day-label">${day.label}</div>`:""}</div><div class="day-right"><div class="day-total">${fmt(dayTotal)}</div></div></div><div class="day-entries">`;day.entries.forEach(e=>{const cat=DB.categories.find(c=>c.id===e.category)||{label:e.category,color:"#888"};html+=`<div class="entry-row"><div class="entry-left"><span class="badge" style="background:${cat.color}33;color:${cat.color};border:1px solid ${cat.color}55">${cat.label}</span>${e.vendor?`<div class="entry-vendor">Vendor: ${e.vendor}</div>`:""}${e.note?`<div class="entry-note">${e.note}</div>`:""}</div><div class="entry-right"><span class="entry-amt">${fmt(e.amount)}</span><button class="icon-btn" style="color:#C9A84C" onclick="openEditEntry('${day.id}','${e.id}')">✏️</button><button class="icon-btn-x" onclick="deleteEntry('${day.id}','${e.id}')">×</button></div></div>`});html+=`<button class="btn btn-ghost btn-inline" style="margin-top:8px;width:100%" onclick="openAddEntry('${day.id}')">+ Add Expense</button></div></div>`});document.getElementById("tab-content").innerHTML=html}
+function openAddDay(){document.getElementById("ad-date").value=todayStr();openModal("modal-add-day")}
+async function addDay(){const t=getTrip();if(!t)return;const date=document.getElementById("ad-date").value,label=document.getElementById("ad-label").value.trim();let id=genId();if(isOnline){const{data,error}=await sb.from("trip_days").insert({trip_id:t.id,day_date:date,label}).select().single();if(error){alert("Could not save day online: "+error.message);return}id=data.id}t.days.push({id,date,label,entries:[]});t.days.sort((a,b)=>a.date.localeCompare(b.date));saveData();closeModal("modal-add-day");renderDaysTab()}
+function openAddEntry(dayId){_addEntryDayId=dayId;populateCatSelect("ae-cat",DB.categories[0].id);document.getElementById("ae-amt").value="";document.getElementById("ae-vendor").value="";document.getElementById("ae-note").value="";document.getElementById("ae-date").value=getTrip().days.find(d=>d.id===dayId).date||todayStr();openModal("modal-add-entry")}
+async function addEntry(){const amt=document.getElementById("ae-amt").value;if(!amt)return;const t=getTrip(),category=document.getElementById("ae-cat").value,vendor=document.getElementById("ae-vendor").value.trim(),note=document.getElementById("ae-note").value.trim(),date=document.getElementById("ae-date").value;let id=genId();if(isOnline&&currentUser){const{data,error}=await sb.from("expenses").insert({trip_id:t.id,day_id:_addEntryDayId,company_id:currentUser.company_id,created_by:currentUser.id,category_id:category,amount:amt,vendor,note,expense_date:date}).select().single();if(error){alert("Could not save expense online: "+error.message);return}id=data.id}t.days.find(d=>d.id===_addEntryDayId).entries.push({id,category,amount:amt,vendor,note,date});saveData();closeModal("modal-add-entry");renderTripHeader();renderDaysTab()}
+function openEditEntry(dayId,entryId){const e=getTrip().days.find(d=>d.id===dayId).entries.find(e=>e.id===entryId);_editEntryDayId=dayId;_editEntryId=entryId;populateCatSelect("ee-cat",e.category);document.getElementById("ee-amt").value=e.amount;document.getElementById("ee-vendor").value=e.vendor||"";document.getElementById("ee-note").value=e.note||"";document.getElementById("ee-date").value=e.date||"";openModal("modal-edit-entry")}
+async function saveEditEntry(){const e=getTrip().days.find(d=>d.id===_editEntryDayId).entries.find(e=>e.id===_editEntryId);e.category=document.getElementById("ee-cat").value;e.amount=document.getElementById("ee-amt").value;e.vendor=document.getElementById("ee-vendor").value.trim();e.note=document.getElementById("ee-note").value.trim();e.date=document.getElementById("ee-date").value;if(isOnline){const{error}=await sb.from("expenses").update({category_id:e.category,amount:e.amount,vendor:e.vendor,note:e.note,expense_date:e.date}).eq("id",e.id);if(error)alert("Could not update online: "+error.message)}saveData();closeModal("modal-edit-entry");renderTripHeader();renderDaysTab()}
+async function deleteEntry(dayId,entryId){const day=getTrip().days.find(d=>d.id===dayId);day.entries=day.entries.filter(e=>e.id!==entryId);if(isOnline)await sb.from("expenses").delete().eq("id",entryId);saveData();renderTripHeader();renderDaysTab()}
+function renderFundsTab(){const t=getTrip();if(!t)return;let html=`<button class="btn btn-primary" style="margin-bottom:16px" onclick="openAddFund()">+ Add Fund / Collection</button>`;t.funds.forEach(f=>{html+=`<div class="fund-row"><div><div class="fund-name">${FUND_LABELS[f.type]||f.type}</div>${f.client?`<div class="fund-client">From: ${f.client}</div>`:""}${f.note?`<div class="fund-note">${f.note}</div>`:""}<div class="fund-date">${f.date||""}</div></div><div class="fund-right"><span class="fund-amt">${fmt(f.amount)}</span><button class="icon-btn" style="color:#C9A84C" onclick="openEditFund('${f.id}')">✏️</button><button class="icon-btn-x" onclick="deleteFund('${f.id}')">×</button></div></div>`});document.getElementById("tab-content").innerHTML=html}
+function openAddFund(){document.getElementById("af-type").value="collection";document.getElementById("af-amt").value="";document.getElementById("af-client").value="";document.getElementById("af-note").value="";document.getElementById("af-date").value=todayStr();openModal("modal-add-fund")}
+async function addFund(){const amt=document.getElementById("af-amt").value;if(!amt)return;const t=getTrip(),type=document.getElementById("af-type").value,client=document.getElementById("af-client").value.trim(),note=document.getElementById("af-note").value.trim(),date=document.getElementById("af-date").value;let id=genId();if(isOnline&&currentUser){const{data,error}=await sb.from("trip_funds").insert({trip_id:t.id,company_id:currentUser.company_id,created_by:currentUser.id,fund_type:type,amount:amt,client,note,fund_date:date}).select().single();if(error){alert("Could not save fund online: "+error.message);return}id=data.id}t.funds.push({id,type,amount:amt,client,note,date});saveData();closeModal("modal-add-fund");renderTripHeader();renderFundsTab()}
+function openEditFund(id){const f=getTrip().funds.find(x=>x.id===id);_editFundId=id;document.getElementById("ef-type").value=f.type;document.getElementById("ef-amt").value=f.amount;document.getElementById("ef-client").value=f.client||"";document.getElementById("ef-note").value=f.note||"";document.getElementById("ef-date").value=f.date||"";openModal("modal-edit-fund")}
+async function saveEditFund(){const f=getTrip().funds.find(x=>x.id===_editFundId);f.type=document.getElementById("ef-type").value;f.amount=document.getElementById("ef-amt").value;f.client=document.getElementById("ef-client").value.trim();f.note=document.getElementById("ef-note").value.trim();f.date=document.getElementById("ef-date").value;if(isOnline){const{error}=await sb.from("trip_funds").update({fund_type:f.type,amount:f.amount,client:f.client,note:f.note,fund_date:f.date}).eq("id",f.id);if(error)alert("Could not update online: "+error.message)}saveData();closeModal("modal-edit-fund");renderTripHeader();renderFundsTab()}
+async function deleteFund(id){const t=getTrip();t.funds=t.funds.filter(f=>f.id!==id);if(isOnline)await sb.from("trip_funds").delete().eq("id",id);saveData();renderTripHeader();renderFundsTab()}
+function renderSummaryTab(){const t=getTrip();if(!t)return;const catTotals={};DB.categories.forEach(c=>catTotals[c.id]=0);t.days.forEach(d=>d.entries.forEach(e=>{catTotals[e.category]=(catTotals[e.category]||0)+Number(e.amount)}));const totalSpent=t.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0),totalFunds=t.funds.reduce((s,f)=>s+Number(f.amount),0),balance=totalFunds-totalSpent,companyAdv=t.funds.filter(f=>f.type==="company_advance").reduce((s,f)=>s+Number(f.amount),0);let html=`<div class="summary-card"><div class="summary-title">📊 Category-wise Total</div>`;DB.categories.forEach(cat=>{const amt=catTotals[cat.id]||0;if(!amt)return;const pct=totalSpent>0?amt/totalSpent*100:0;html+=`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#CCC;font-size:14px">${cat.label}</span><span style="color:${cat.color};font-weight:700">${fmt(amt)}</span></div><div class="bar-track"><div class="bar-fill" style="background:${cat.color};width:${pct}%"></div></div></div>`});html+=`</div><div class="summary-card" style="margin-bottom:20px"><div class="summary-title">💼 Final Reconciliation</div><div class="summary-row"><span class="recon-lbl">Total Funds Received</span><span class="recon-val" style="color:#27AE60">${fmt(totalFunds)}</span></div><div class="summary-row"><span class="recon-lbl">Total Expenses</span><span class="recon-val" style="color:#EC7063">${fmt(totalSpent)}</span></div><div class="summary-row"><span class="recon-lbl">Trip Balance</span><span class="recon-val" style="color:${balance>=0?"#F7DC6F":"#EC7063"}">${fmt(balance)}</span></div><div class="summary-row"><span class="recon-lbl">Company Advance</span><span class="recon-val" style="color:#4ECDC4">${fmt(companyAdv)}</span></div>${balance<0?`<div class="deficit-box">⚠️ You spent ₹${Math.abs(balance).toLocaleString("en-IN")} MORE than received. Company owes you this.</div>`:""}</div>`;const tripMo=t.date?t.date.substring(0,7):todayStr().substring(0,7),moStats=getMonthStats(tripMo),moName=new Date(tripMo+"-01").toLocaleString("default",{month:"long",year:"numeric"});html+=`<div class="summary-card" style="margin-bottom:20px;border-color:#45B7D1;"><div class="summary-title" style="color:#45B7D1;">🗓️ ${moName} Overall Status (Till Date)</div><div class="summary-row"><span class="recon-lbl">Monthly Global Received</span><span class="recon-val" style="color:#27AE60">${fmt(moStats.income)}</span></div><div class="summary-row"><span class="recon-lbl">Monthly Global Spent</span><span class="recon-val" style="color:#EC7063">${fmt(moStats.expense)}</span></div><div class="summary-row" style="border-top:1px solid #333;margin-top:8px;padding-top:12px"><span style="color:#E8D5A3;font-weight:bold">Remaining Global Balance</span><span style="color:${moStats.balance>=0?"#F7DC6F":"#EC7063"};font-weight:700;font-size:16px">${fmt(moStats.balance)}</span></div></div><button class="btn btn-whatsapp" onclick="shareWhatsApp()">📤 Share Trip Report on WhatsApp</button>`;document.getElementById("tab-content").innerHTML=html}
+function shareWhatsApp(){const t=getTrip();if(!t)return;const totalSpent=t.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0),totalFunds=t.funds.reduce((s,f)=>s+Number(f.amount),0),balance=totalFunds-totalSpent;let msg=`*TRIP EXPENSE REPORT*\\n*${t.name}*\\n`;if(t.destination)msg+=`📍 ${t.destination}\\n`;msg+=`🗓️ ${t.date||""} | 👥 ${t.customers||"?"} pax | 👤 ${t.leader_name||"Leader"}\\n━━━━━━━━━━━━━━━\\n\\n*FUNDS RECEIVED*\\n`;t.funds.forEach(f=>{msg+=`• ${FUND_LABELS[f.type]||f.type}: ₹${Number(f.amount).toLocaleString("en-IN")}`;if(f.client)msg+=` (From: ${f.client})`;if(f.note)msg+=` (${f.note})`;msg+="\\n"});msg+=`*Total Funds: ₹${totalFunds.toLocaleString("en-IN")}*\\n\\n*DAY-WISE EXPENSES*\\n`;t.days.forEach(d=>{const dt=d.entries.reduce((s,e)=>s+Number(e.amount),0);if(dt>0){msg+=`\\n📅 *${d.date}${d.label?" - "+d.label:""}*\\n`;d.entries.forEach(e=>{const cat=DB.categories.find(c=>c.id===e.category);msg+=`  • ${cat?cat.label:e.category}: ₹${Number(e.amount).toLocaleString("en-IN")}`;if(e.vendor)msg+=` [Vendor: ${e.vendor}]`;if(e.note)msg+=` – ${e.note}`;msg+="\\n"});msg+=`  *Day Total: ₹${dt.toLocaleString("en-IN")}*\\n`}});msg+=`\\n━━━━━━━━━━━━━━━\\n*TRIP TOTAL EXPENSE: ₹${totalSpent.toLocaleString("en-IN")}*\\n*TRIP TOTAL FUNDS: ₹${totalFunds.toLocaleString("en-IN")}*\\n*TRIP BALANCE: ₹${balance.toLocaleString("en-IN")}* ${balance>=0?"✅":"❌ DEFICIT"}\\n`;const tripMo=t.date?t.date.substring(0,7):todayStr().substring(0,7),moStats=getMonthStats(tripMo),moName=new Date(tripMo+"-01").toLocaleString("default",{month:"long",year:"numeric"});msg+=`\\n━━━━━━━━━━━━━━━\\n*${moName.toUpperCase()} OVERALL STATUS (TILL DATE)*\\nMonthly Global Received: ₹${moStats.income.toLocaleString("en-IN")}\\nMonthly Global Spent: ₹${moStats.expense.toLocaleString("en-IN")}\\n*Remaining Global Balance: ₹${moStats.balance.toLocaleString("en-IN")}* ${moStats.balance>=0?"✅":"❌"}\\n\\n_Reported by Maharashtra Desha Adventure_`;window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank")}
+document.getElementById("nt-date").value=todayStr();renderTripList();checkSession();document.getElementById("login-password").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
+</script>
+</body>
+</html>
