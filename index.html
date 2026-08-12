@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <title>MDA Expense Manager Pro</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   #login-screen { position:fixed; inset:0; background:#0D0D1A; z-index:999; display:flex; align-items:center; justify-content:center; padding:20px; }
   #login-screen.hidden { display:none; }
@@ -80,6 +81,7 @@
   .btn-success { background:#27AE60; color:#fff; }
   .btn-ghost { background:#2D2D4E; color:#CCC; }
   .btn-whatsapp { background:#25D366; color:#fff; font-size:16px; padding:14px; }
+  .btn-pdf { background:#E74C3C; color:#fff; font-size:16px; padding:14px; margin-top:10px; }
   .btn-danger { background:#EC7063; color:#fff; }
   .btn-inline { width:auto; display:inline-block; padding:9px 14px; font-size:13px; }
   .btn-row { display:flex; gap:10px; margin-top:6px; }
@@ -700,11 +702,67 @@ async function deleteCurrentTrip(){
 
 function switchTripTab(tab){currentTab=tab;document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));document.getElementById("tab-"+tab).classList.add("active");if(tab==="days")renderDaysTab();else if(tab==="funds")renderFundsTab();else renderSummaryTab()}
 function populateCatSelect(id,selectedId){document.getElementById(id).innerHTML=DB.categories.map(c=>`<option value="${c.id}" ${c.id===selectedId?"selected":""}>${c.label}</option>`).join("")}
-function renderDaysTab(){const t=getTrip();if(!t)return;let html=`<button class="btn btn-primary" style="margin-bottom:16px" onclick="openAddDay()">+ Add Day</button>`;if(!t.days.length)html+='<div class="empty">No days added yet.</div>';else t.days.forEach(day=>{const dayTotal=day.entries.reduce((s,e)=>s+Number(e.amount),0);html+=`<div class="card" style="margin-bottom:14px"><div class="day-header"><div><div class="day-date">📅 ${day.date}</div>${day.label?`<div class="day-label">${day.label}</div>`:""}</div><div class="day-right"><div class="day-total">${fmt(dayTotal)}</div></div></div><div class="day-entries">`;day.entries.forEach(e=>{const cat=DB.categories.find(c=>c.id===e.category)||{label:e.category,color:"#888"};html+=`<div class="entry-row"><div class="entry-left"><span class="badge" style="background:${cat.color}33;color:${cat.color};border:1px solid ${cat.color}55">${cat.label}</span>${e.vendor?`<div class="entry-vendor">Vendor: ${e.vendor}</div>`:""}${e.note?`<div class="entry-note">${e.note}</div>`:""}</div><div class="entry-right"><span class="entry-amt">${fmt(e.amount)}</span><button class="icon-btn" style="color:#C9A84C" onclick="openEditEntry('${day.id}','${e.id}')">✏️</button><button class="icon-btn-x" onclick="deleteEntry('${day.id}','${e.id}')">×</button></div></div>`});html+=`<button class="btn btn-ghost btn-inline" style="margin-top:8px;width:100%" onclick="openAddEntry('${day.id}')">+ Add Expense</button></div></div>`});document.getElementById("tab-content").innerHTML=html}
+function renderDaysTab(){
+  const t=getTrip();
+  if(!t)return;
+  let html=`<button class="btn btn-primary" style="margin-bottom:16px" onclick="openAddDay()">+ Add Day</button>`;
+  if(!t.days.length) html+='<div class="empty">No days added yet.</div>';
+  else t.days.forEach(day=>{
+    const dayTotal=day.entries.reduce((s,e)=>s+Number(e.amount),0);
+    html+=`<div class="card" style="margin-bottom:14px">
+      <div class="day-header">
+        <div>
+          <div class="day-date">📅 ${day.date}</div>
+          ${day.label?`<div class="day-label">${day.label}</div>`:""}
+        </div>
+        <div class="day-right">
+          <div class="day-total">${fmt(dayTotal)}</div>
+          <button class="icon-btn-x" title="Delete Day" onclick="deleteDay('${day.id}')">×</button>
+        </div>
+      </div>
+      <div class="day-entries">`;
+    day.entries.forEach(e=>{
+      const cat=DB.categories.find(c=>c.id===e.category)||{label:e.category,color:"#888"};
+      html+=`<div class="entry-row">
+        <div class="entry-left">
+          <span class="badge" style="background:${cat.color}33;color:${cat.color};border:1px solid ${cat.color}55">${cat.label}</span>
+          ${e.vendor?`<div class="entry-vendor">Vendor: ${e.vendor}</div>`:""}
+          ${e.note?`<div class="entry-note">${e.note}</div>`:""}
+        </div>
+        <div class="entry-right">
+          <span class="entry-amt">${fmt(e.amount)}</span>
+          <button class="icon-btn" style="color:#C9A84C" onclick="openEditEntry('${day.id}','${e.id}')">✏️</button>
+          <button class="icon-btn-x" onclick="deleteEntry('${day.id}','${e.id}')">×</button>
+        </div>
+      </div>`;
+    });
+    html+=`<button class="btn btn-ghost btn-inline" style="margin-top:8px;width:100%" onclick="openAddEntry('${day.id}')">+ Add Expense</button></div></div>`;
+  });
+  document.getElementById("tab-content").innerHTML=html;
+}
+
 function openAddDay(){document.getElementById("ad-date").value=todayStr();openModal("modal-add-day")}
 async function addDay(){const t=getTrip();if(!t)return;const date=document.getElementById("ad-date").value,label=document.getElementById("ad-label").value.trim();let id=genId();if(isOnline){const{data,error}=await sb.from("trip_days").insert({trip_id:t.id,day_date:date,label}).select().single();if(error){alert("Could not save day online: "+error.message);return}id=data.id}t.days.push({id,date,label,entries:[]});t.days.sort((a,b)=>a.date.localeCompare(b.date));saveData();closeModal("modal-add-day");renderDaysTab()}
+
+async function deleteDay(dayId){
+  if(!confirm("Are you sure you want to delete this day and all its expenses?")) return;
+  const t = getTrip();
+  if(!t) return;
+  if(isOnline){
+    await sb.from("expenses").delete().eq("day_id", dayId);
+    await sb.from("trip_days").delete().eq("id", dayId);
+  }
+  const day = t.days.find(d => d.id === dayId);
+  if(day){
+    t.days = t.days.filter(d => d.id !== dayId);
+  }
+  saveData();
+  renderTripHeader();
+  renderDaysTab();
+}
+
 function openAddEntry(dayId){_addEntryDayId=dayId;populateCatSelect("ae-cat",DB.categories[0].id);document.getElementById("ae-amt").value="";document.getElementById("ae-vendor").value="";document.getElementById("ae-note").value="";document.getElementById("ae-date").value=getTrip().days.find(d=>d.id===dayId).date||todayStr();openModal("modal-add-entry")}
-async function addEntry(){const amt=document.getElementById("ae-amt").value;if(!amt)return;const t=getTrip(),category=document.getElementById("ae-cat").value,vendor=document.getElementById("ae-vendor").value.trim(),note=document.getElementById("ae-note").value.trim(),date=document.getElementById("ae-date").value;let id=genId();if(isOnline&&currentUser){const{data,error}=await sb.from("expenses").insert({trip_id:t.id,day_id:_addEntryDayId,company_id:currentUser.company_id,created_by:currentUser.id,category_id:category,amount:amt,vendor,note,expense_date:date}).select().single();if(error){alert("Could not save expense online: "+error.message);return}id=data.id}t.days.find(d=>d.id===_addEntryDayId).entries.push({id,category,amount:amt,vendor,note,date});saveData();closeModal("modal-add-entry");renderTripHeader();renderDaysTab()}
+async function addEntry(){const amt=document.getElementById("ae-amt").value;if(!amt)return;const t=getTrip(),category=document.getElementById("ae-cat").value,vendor=document.getElementById("ae-vendor").value.trim(),note=document.getElementById("ae-note").value.trim(),date=document.getElementById("ae-date").value;let id=genId();if(isOnline&&currentUser){const{data,error}=await sb.from("expenses").insert({trip_id:t.id,day_id:_addEntryDayId,company_id:currentUser.company_id,created_by:currentUser.id,category_id:category,amount:amt,vendor,note,expense_date:date}).select().single();if(error){alert("Could not save expense online: "+error.message);return}id=data.id}t.days.find(d=>d.id==_addEntryDayId).entries.push({id,category,amount:amt,vendor,note,date});saveData();closeModal("modal-add-entry");renderTripHeader();renderDaysTab()}
 function openEditEntry(dayId,entryId){const e=getTrip().days.find(d=>d.id===dayId).entries.find(e=>e.id===entryId);_editEntryDayId=dayId;_editEntryId=entryId;populateCatSelect("ee-cat",e.category);document.getElementById("ee-amt").value=e.amount;document.getElementById("ee-vendor").value=e.vendor||"";document.getElementById("ee-note").value=e.note||"";document.getElementById("ee-date").value=e.date||"";openModal("modal-edit-entry")}
 async function saveEditEntry(){const e=getTrip().days.find(d=>d.id===_editEntryDayId).entries.find(e=>e.id===_editEntryId);e.category=document.getElementById("ee-cat").value;e.amount=document.getElementById("ee-amt").value;e.vendor=document.getElementById("ee-vendor").value.trim();e.note=document.getElementById("ee-note").value.trim();e.date=document.getElementById("ee-date").value;if(isOnline){const{error}=await sb.from("expenses").update({category_id:e.category,amount:e.amount,vendor:e.vendor,note:e.note,expense_date:e.date}).eq("id",e.id);if(error)alert("Could not update online: "+error.message)}saveData();closeModal("modal-edit-entry");renderTripHeader();renderDaysTab()}
 async function deleteEntry(dayId,entryId){const day=getTrip().days.find(d=>d.id===dayId);day.entries=day.entries.filter(e=>e.id!==entryId);if(isOnline)await sb.from("expenses").delete().eq("id",entryId);saveData();renderTripHeader();renderDaysTab()}
@@ -714,8 +772,209 @@ async function addFund(){const amt=document.getElementById("af-amt").value;if(!a
 function openEditFund(id){const f=getTrip().funds.find(x=>x.id===id);_editFundId=id;document.getElementById("ef-type").value=f.type;document.getElementById("ef-amt").value=f.amount;document.getElementById("ef-client").value=f.client||"";document.getElementById("ef-note").value=f.note||"";document.getElementById("ef-date").value=f.date||"";openModal("modal-edit-fund")}
 async function saveEditFund(){const f=getTrip().funds.find(x=>x.id===_editFundId);f.type=document.getElementById("ef-type").value;f.amount=document.getElementById("ef-amt").value;f.client=document.getElementById("ef-client").value.trim();f.note=document.getElementById("ef-note").value.trim();f.date=document.getElementById("ef-date").value;if(isOnline){const{error}=await sb.from("trip_funds").update({fund_type:f.type,amount:f.amount,client:f.client,note:f.note,fund_date:f.date}).eq("id",f.id);if(error)alert("Could not update online: "+error.message)}saveData();closeModal("modal-edit-fund");renderTripHeader();renderFundsTab()}
 async function deleteFund(id){const t=getTrip();t.funds=t.funds.filter(f=>f.id!==id);if(isOnline)await sb.from("trip_funds").delete().eq("id",id);saveData();renderTripHeader();renderFundsTab()}
-function renderSummaryTab(){const t=getTrip();if(!t)return;const catTotals={};DB.categories.forEach(c=>catTotals[c.id]=0);t.days.forEach(d=>d.entries.forEach(e=>{catTotals[e.category]=(catTotals[e.category]||0)+Number(e.amount)}));const totalSpent=t.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0),totalFunds=t.funds.reduce((s,f)=>s+Number(f.amount),0),balance=totalFunds-totalSpent,companyAdv=t.funds.filter(f=>f.type==="company_advance").reduce((s,f)=>s+Number(f.amount),0);let html=`<div class="summary-card"><div class="summary-title">📊 Category-wise Total</div>`;DB.categories.forEach(cat=>{const amt=catTotals[cat.id]||0;if(!amt)return;const pct=totalSpent>0?amt/totalSpent*100:0;html+=`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#CCC;font-size:14px">${cat.label}</span><span style="color:${cat.color};font-weight:700">${fmt(amt)}</span></div><div class="bar-track"><div class="bar-fill" style="background:${cat.color};width:${pct}%"></div></div></div>`});html+=`</div><div class="summary-card" style="margin-bottom:20px"><div class="summary-title">💼 Final Reconciliation</div><div class="summary-row"><span class="recon-lbl">Total Funds Received</span><span class="recon-val" style="color:#27AE60">${fmt(totalFunds)}</span></div><div class="summary-row"><span class="recon-lbl">Total Expenses</span><span class="recon-val" style="color:#EC7063">${fmt(totalSpent)}</span></div><div class="summary-row"><span class="recon-lbl">Trip Balance</span><span class="recon-val" style="color:${balance>=0?"#F7DC6F":"#EC7063"}">${fmt(balance)}</span></div><div class="summary-row"><span class="recon-lbl">Company Advance</span><span class="recon-val" style="color:#4ECDC4">${fmt(companyAdv)}</span></div>${balance<0?`<div class="deficit-box">⚠️ You spent ₹${Math.abs(balance).toLocaleString("en-IN")} MORE than received. Company owes you this.</div>`:""}</div>`;const tripMo=t.date?t.date.substring(0,7):todayStr().substring(0,7),moStats=getMonthStats(tripMo),moName=new Date(tripMo+"-01").toLocaleString("default",{month:"long",year:"numeric"});html+=`<div class="summary-card" style="margin-bottom:20px;border-color:#45B7D1;"><div class="summary-title" style="color:#45B7D1;">🗓️ ${moName} Overall Status (Till Date)</div><div class="summary-row"><span class="recon-lbl">Monthly Global Received</span><span class="recon-val" style="color:#27AE60">${fmt(moStats.income)}</span></div><div class="summary-row"><span class="recon-lbl">Monthly Global Spent</span><span class="recon-val" style="color:#EC7063">${fmt(moStats.expense)}</span></div><div class="summary-row" style="border-top:1px solid #333;margin-top:8px;padding-top:12px"><span style="color:#E8D5A3;font-weight:bold">Remaining Global Balance</span><span style="color:${moStats.balance>=0?"#F7DC6F":"#EC7063"};font-weight:700;font-size:16px">${fmt(moStats.balance)}</span></div></div><button class="btn btn-whatsapp" onclick="shareWhatsApp()">📤 Share Trip Report on WhatsApp</button>`;document.getElementById("tab-content").innerHTML=html}
-function shareWhatsApp(){const t=getTrip();if(!t)return;const totalSpent=t.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0),totalFunds=t.funds.reduce((s,f)=>s+Number(f.amount),0),balance=totalFunds-totalSpent;let msg=`*TRIP EXPENSE REPORT*\\n*${t.name}*\\n`;if(t.destination)msg+=`📍 ${t.destination}\\n`;msg+=`🗓️ ${t.date||""} | 👥 ${t.customers||"?"} pax | 👤 ${t.leader_name||"Leader"}\\n━━━━━━━━━━━━━━━\\n\\n*FUNDS RECEIVED*\\n`;t.funds.forEach(f=>{msg+=`• ${FUND_LABELS[f.type]||f.type}: ₹${Number(f.amount).toLocaleString("en-IN")}`;if(f.client)msg+=` (From: ${f.client})`;if(f.note)msg+=` (${f.note})`;msg+="\\n"});msg+=`*Total Funds: ₹${totalFunds.toLocaleString("en-IN")}*\\n\\n*DAY-WISE EXPENSES*\\n`;t.days.forEach(d=>{const dt=d.entries.reduce((s,e)=>s+Number(e.amount),0);if(dt>0){msg+=`\\n📅 *${d.date}${d.label?" - "+d.label:""}*\\n`;d.entries.forEach(e=>{const cat=DB.categories.find(c=>c.id===e.category);msg+=`  • ${cat?cat.label:e.category}: ₹${Number(e.amount).toLocaleString("en-IN")}`;if(e.vendor)msg+=` [Vendor: ${e.vendor}]`;if(e.note)msg+=` – ${e.note}`;msg+="\\n"});msg+=`  *Day Total: ₹${dt.toLocaleString("en-IN")}*\\n`}});msg+=`\\n━━━━━━━━━━━━━━━\\n*TRIP TOTAL EXPENSE: ₹${totalSpent.toLocaleString("en-IN")}*\\n*TRIP TOTAL FUNDS: ₹${totalFunds.toLocaleString("en-IN")}*\\n*TRIP BALANCE: ₹${balance.toLocaleString("en-IN")}* ${balance>=0?"✅":"❌ DEFICIT"}\\n`;const tripMo=t.date?t.date.substring(0,7):todayStr().substring(0,7),moStats=getMonthStats(tripMo),moName=new Date(tripMo+"-01").toLocaleString("default",{month:"long",year:"numeric"});msg+=`\\n━━━━━━━━━━━━━━━\\n*${moName.toUpperCase()} OVERALL STATUS (TILL DATE)*\\nMonthly Global Received: ₹${moStats.income.toLocaleString("en-IN")}\\nMonthly Global Spent: ₹${moStats.expense.toLocaleString("en-IN")}\\n*Remaining Global Balance: ₹${moStats.balance.toLocaleString("en-IN")}* ${moStats.balance>=0?"✅":"❌"}\\n\\n_Reported by Maharashtra Desha Adventure_`;window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank")}
+
+function renderSummaryTab(){
+  const t=getTrip();
+  if(!t)return;
+  const catTotals={};
+  DB.categories.forEach(c=>catTotals[c.id]=0);
+  t.days.forEach(d=>d.entries.forEach(e=>{catTotals[e.category]=(catTotals[e.category]||0)+Number(e.amount)}));
+  const totalSpent=t.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0);
+  const totalFunds=t.funds.reduce((s,f)=>s+Number(f.amount),0);
+  const balance=totalFunds-totalSpent;
+  const companyAdv=t.funds.filter(f=>f.type==="company_advance").reduce((s,f)=>s+Number(f.amount),0);
+
+  let html=`<div class="summary-card"><div class="summary-title">📊 Category-wise Total</div>`;
+  DB.categories.forEach(cat=>{
+    const amt=catTotals[cat.id]||0;
+    if(!amt)return;
+    const pct=totalSpent>0?amt/totalSpent*100:0;
+    html+=`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#CCC;font-size:14px">${cat.label}</span><span style="color:${cat.color};font-weight:700">${fmt(amt)}</span></div><div class="bar-track"><div class="bar-fill" style="background:${cat.color};width:${pct}%"></div></div></div>`;
+  });
+  html+=`</div>
+  <div class="summary-card" style="margin-bottom:20px">
+    <div class="summary-title">💼 Final Reconciliation</div>
+    <div class="summary-row"><span class="recon-lbl">Total Funds Received</span><span class="recon-val" style="color:#27AE60">${fmt(totalFunds)}</span></div>
+    <div class="summary-row"><span class="recon-lbl">Total Expenses</span><span class="recon-val" style="color:#EC7063">${fmt(totalSpent)}</span></div>
+    <div class="summary-row"><span class="recon-lbl">Trip Balance</span><span class="recon-val" style="color:${balance>=0?"#F7DC6F":"#EC7063"}">${fmt(balance)}</span></div>
+    <div class="summary-row"><span class="recon-lbl">Company Advance</span><span class="recon-val" style="color:#4ECDC4">${fmt(companyAdv)}</span></div>
+    ${balance<0?`<div class="deficit-box">⚠️ You spent ₹${Math.abs(balance).toLocaleString("en-IN")} MORE than received. Company owes you this.</div>`:""}
+  </div>`;
+
+  const tripMo=t.date?t.date.substring(0,7):todayStr().substring(0,7),moStats=getMonthStats(tripMo),moName=new Date(tripMo+"-01").toLocaleString("default",{month:"long",year:"numeric"});
+  html+=`<div class="summary-card" style="margin-bottom:20px;border-color:#45B7D1;">
+    <div class="summary-title" style="color:#45B7D1;">🗓️ ${moName} Overall Status (Till Date)</div>
+    <div class="summary-row"><span class="recon-lbl">Monthly Global Received</span><span class="recon-val" style="color:#27AE60">${fmt(moStats.income)}</span></div>
+    <div class="summary-row"><span class="recon-lbl">Monthly Global Spent</span><span class="recon-val" style="color:#EC7063">${fmt(moStats.expense)}</span></div>
+    <div class="summary-row" style="border-top:1px solid #333;margin-top:8px;padding-top:12px"><span style="color:#E8D5A3;font-weight:bold">Remaining Global Balance</span><span style="color:${moStats.balance>=0?"#F7DC6F":"#EC7063"};font-weight:700;font-size:16px">${fmt(moStats.balance)}</span></div>
+  </div>
+  <button class="btn btn-whatsapp" onclick="shareWhatsApp()">📤 Share Trip Report on WhatsApp</button>
+  <button class="btn btn-pdf" onclick="downloadPDF()">📄 Download PDF Summary Report</button>`;
+
+  document.getElementById("tab-content").innerHTML=html;
+}
+
+function shareWhatsApp(){
+  const t=getTrip();
+  if(!t)return;
+  const totalSpent=t.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0),totalFunds=t.funds.reduce((s,f)=>s+Number(f.amount),0),balance=totalFunds-totalSpent;
+  let msg=`*TRIP EXPENSE REPORT*\\n*${t.name}*\\n`;
+  if(t.destination)msg+=`📍 ${t.destination}\\n`;
+  msg+=`🗓️ ${t.date||""} | 👥 ${t.customers||"?"} pax | 👤 ${t.leader_name||"Leader"}\\n━━━━━━━━━━━━━━━\\n\\n*FUNDS RECEIVED*\\n`;
+  t.funds.forEach(f=>{
+    msg+=`• ${FUND_LABELS[f.type]||f.type}: ₹${Number(f.amount).toLocaleString("en-IN")}`;
+    if(f.client)msg+=` (From: ${f.client})`;
+    if(f.note)msg+=` (${f.note})`;
+    msg+="\\n";
+  });
+  msg+=`*Total Funds: ₹${totalFunds.toLocaleString("en-IN")}*\\n\\n*DAY-WISE EXPENSES*\\n`;
+  t.days.forEach(d=>{
+    const dt=d.entries.reduce((s,e)=>s+Number(e.amount),0);
+    if(dt>0){
+      msg+=`\\n📅 *${d.date}${d.label?" - "+d.label:""}*\\n`;
+      d.entries.forEach(e=>{
+        const cat=DB.categories.find(c=>c.id===e.category);
+        msg+=`  • ${cat?cat.label:e.category}: ₹${Number(e.amount).toLocaleString("en-IN")}`;
+        if(e.vendor)msg+=` [Vendor: ${e.vendor}]`;
+        if(e.note)msg+=` – ${e.note}`;
+        msg+="\\n";
+      });
+      msg+=`  *Day Total: ₹${dt.toLocaleString("en-IN")}*\\n`;
+    }
+  });
+  msg+=`\\n━━━━━━━━━━━━━━━\\n*TRIP TOTAL EXPENSE: ₹${totalSpent.toLocaleString("en-IN")}*\\n*TRIP TOTAL FUNDS: ₹${totalFunds.toLocaleString("en-IN")}*\\n*TRIP BALANCE: ₹${balance.toLocaleString("en-IN")}* ${balance>=0?"✅":"❌ DEFICIT"}\\n`;
+  const tripMo=t.date?t.date.substring(0,7):todayStr().substring(0,7),moStats=getMonthStats(tripMo),moName=new Date(tripMo+"-01").toLocaleString("default",{month:"long",year:"numeric"});
+  msg+=`\\n━━━━━━━━━━━━━━━\\n*${moName.toUpperCase()} OVERALL STATUS (TILL DATE)*\\nMonthly Global Received: ₹${moStats.income.toLocaleString("en-IN")}\\nMonthly Global Spent: ₹${moStats.expense.toLocaleString("en-IN")}\\n*Remaining Global Balance: ₹${moStats.balance.toLocaleString("en-IN")}* ${moStats.balance>=0?"✅":"❌"}\\n\\n_Reported by Maharashtra Desha Adventure_`;
+  window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank");
+}
+
+function downloadPDF(){
+  const t=getTrip();
+  if(!t)return;
+  const totalSpent=t.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0);
+  const totalFunds=t.funds.reduce((s,f)=>s+Number(f.amount),0);
+  const balance=totalFunds-totalSpent;
+
+  const container=document.createElement("div");
+  container.style.padding="24px";
+  container.style.background="#ffffff";
+  container.style.color="#111111";
+  container.style.fontFamily="Segoe UI, Tahoma, sans-serif";
+  container.style.width="800px";
+
+  let html=`
+    <div style="border-bottom:3px solid #C9A84C; padding-bottom:12px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end;">
+      <div>
+        <div style="font-size:12px; font-weight:700; letter-spacing:2px; color:#C9A84C; text-transform:uppercase;">Maharashtra Desha Adventure</div>
+        <h1 style="margin:4px 0 0 0; font-size:24px; color:#1A1A2E;">Official Trip Expense & Financial Report</h1>
+      </div>
+      <div style="text-align:right; font-size:12px; color:#555;">
+        Generated on: ${todayStr()}
+      </div>
+    </div>
+
+    <div style="background:#f8f9fa; border:1px solid #ddd; border-radius:8px; padding:16px; margin-bottom:20px;">
+      <h3 style="margin:0 0 8px 0; color:#1A1A2E; font-size:18px;">🏕️ ${t.name}</h3>
+      <div style="display:flex; gap:20px; font-size:13px; color:#444;">
+        <div><strong>Destination:</strong> ${t.destination || 'N/A'}</div>
+        <div><strong>Start Date:</strong> ${t.date || 'N/A'}</div>
+        <div><strong>Customers:</strong> ${t.customers || '?'} Pax</div>
+        <div><strong>Trip Leader:</strong> ${t.leader_name || 'N/A'}</div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:15px; margin-bottom:20px;">
+      <div style="flex:1; background:#e8f8f5; border:1px solid #a3e4d7; border-radius:8px; padding:12px;">
+        <div style="font-size:12px; color:#16a085; font-weight:600;">TOTAL FUNDS RECEIVED</div>
+        <div style="font-size:20px; font-weight:700; color:#117a65; margin-top:4px;">${fmt(totalFunds)}</div>
+      </div>
+      <div style="flex:1; background:#fdedec; border:1px solid #f5b7b1; border-radius:8px; padding:12px;">
+        <div style="font-size:12px; color:#c0392b; font-weight:600;">TOTAL EXPENSES SPENT</div>
+        <div style="font-size:20px; font-weight:700; color:#922b21; margin-top:4px;">${fmt(totalSpent)}</div>
+      </div>
+      <div style="flex:1; background:#fef9e7; border:1px solid #f9e79f; border-radius:8px; padding:12px;">
+        <div style="font-size:12px; color:#b7950b; font-weight:600;">FINAL BALANCE</div>
+        <div style="font-size:20px; font-weight:700; color:${balance>=0?'#7d6608':'#922b21'}; margin-top:4px;">${fmt(balance)}</div>
+      </div>
+    </div>
+
+    <h4 style="border-bottom:1px solid #ccc; padding-bottom:6px; color:#1A1A2E; margin-bottom:10px;">💵 Funds & Collections Breakdown</h4>
+    <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:13px;">
+      <thead>
+        <tr style="background:#1A1A2E; color:#fff; text-align:left;">
+          <th style="padding:8px;">Type</th>
+          <th style="padding:8px;">Source / Client</th>
+          <th style="padding:8px;">Note</th>
+          <th style="padding:8px; text-align:right;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+  t.funds.forEach(f=>{
+    html+=`<tr style="border-bottom:1px solid #eee;">
+      <td style="padding:8px;">${FUND_LABELS[f.type]||f.type}</td>
+      <td style="padding:8px;">${f.client||'-'}</td>
+      <td style="padding:8px;">${f.note||'-'}</td>
+      <td style="padding:8px; text-align:right; font-weight:600; color:#27ae60;">${fmt(f.amount)}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+
+  html+=`<h4 style="border-bottom:1px solid #ccc; padding-bottom:6px; color:#1A1A2E; margin-bottom:10px;">📅 Day-wise Expenses Breakdown</h4>`;
+  t.days.forEach(d=>{
+    const dt=d.entries.reduce((s,e)=>s+Number(e.amount),0);
+    html+=`<div style="margin-bottom:14px; border:1px solid #ddd; border-radius:6px; overflow:hidden;">
+      <div style="background:#f1f2f6; padding:8px 12px; display:flex; justify-content:space-between; font-weight:bold; font-size:13px;">
+        <span>📅 ${d.date} ${d.label ? '— ' + d.label : ''}</span>
+        <span style="color:#c0392b;">Day Total: ${fmt(dt)}</span>
+      </div>`;
+    if(!d.entries.length){
+      html+=`<div style="padding:8px 12px; font-size:12px; color:#777;">No expenses recorded for this day.</div>`;
+    }else{
+      html+=`<table style="width:100%; border-collapse:collapse; font-size:12px;">
+        <tr style="border-bottom:1px solid #eee; background:#fafafa; color:#555; text-align:left;">
+          <th style="padding:6px 12px;">Category</th>
+          <th style="padding:6px 12px;">Vendor / Payee</th>
+          <th style="padding:6px 12px;">Description</th>
+          <th style="padding:6px 12px; text-align:right;">Amount</th>
+        </tr>`;
+      d.entries.forEach(e=>{
+        const cat=DB.categories.find(c=>c.id===e.category);
+        html+=`<tr style="border-bottom:1px solid #f5f5f5;">
+          <td style="padding:6px 12px;">${cat?cat.label:e.category}</td>
+          <td style="padding:6px 12px;">${e.vendor||'-'}</td>
+          <td style="padding:6px 12px;">${e.note||'-'}</td>
+          <td style="padding:6px 12px; text-align:right; font-weight:600;">${fmt(e.amount)}</td>
+        </tr>`;
+      });
+      html+=`</table>`;
+    }
+    html+=`</div>`;
+  });
+
+  html+=`
+    <div style="margin-top:30px; border-top:2px solid #ddd; padding-top:15px; display:flex; justify-content:space-between; font-size:12px; color:#777;">
+      <div>Maharashtra Desha Adventure · Operations Suite</div>
+      <div>Report Authorized By: ${t.leader_name || 'Trip Leader'}</div>
+    </div>
+  `;
+
+  container.innerHTML=html;
+  document.body.appendChild(container);
+
+  const opt={
+    margin:10,
+    filename:`${t.name.replace(/[^a-zA-Z0-9]/g,'_')}_Report.pdf`,
+    image:{type:'jpeg',quality:0.98},
+    html2canvas:{scale:2,useCORS:true},
+    jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+  };
+
+  html2pdf().from(container).set(opt).save().then(()=>{
+    container.remove();
+  });
+}
+
 document.getElementById("nt-date").value=todayStr();renderTripList();checkSession();document.getElementById("login-password").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
 </script>
 </body>
