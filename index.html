@@ -41,11 +41,17 @@
   .trip-box-name { color: #E8D5A3; font-size: 16px; font-weight: 700; word-break: break-word; text-transform: capitalize; }
   .trip-box-dest { color: #888; font-size: 11px; margin-top: 2px; }
   
-  /* Two separate action buttons inside each trip card box as requested */
+  /* Two separate action buttons inside each trip card box */
   .trip-box-actions { display: flex; gap: 6px; margin-top: 10px; }
   .box-action-btn { flex: 1; padding: 8px 4px; border-radius: 8px; border: none; font-size: 11px; font-weight: 700; cursor: pointer; text-align: center; }
   .btn-itinerary-box { background: #2D2D4E; color: #C9A84C; border: 1px solid #C9A84C55; }
   .btn-expense-box { background: #C9A84C; color: #0D0D1A; }
+
+  /* Tour Plans Section */
+  .plan-card { background:#1A1A2E; border-radius:14px; border:1px solid #2D2D4E; padding:16px; margin-bottom:14px; display:flex; flex-direction:column; gap:8px; }
+  .plan-title { color:#C9A84C; font-size:18px; font-weight:800; }
+  .plan-dest { color:#888; font-size:13px; }
+  .plan-content { color:#DDD; font-size:13px; white-space:pre-wrap; background:#0D0D1A; padding:12px; border-radius:8px; border:1px solid #333; margin-top:6px; line-height:1.5; }
 
   .trip-header { background:#1A1A2E; padding:30px 16px 16px; border-bottom:1px solid #2D2D4E; }
   .trip-header-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
@@ -62,10 +68,10 @@
   .tabs { display:flex; background:#1A1A2E; border-bottom:1px solid #2D2D4E; overflow-x:auto; }
   .tab { flex:1; min-width:85px; padding:12px 4px; border:none; background:transparent; color:#555; font-weight:500; font-size:12px; cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; white-space:nowrap; text-align:center; }
   .tab.active { color:#E8D5A3; font-weight:700; border-bottom-color:#C9A84C; }
-  .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:#1A1A2E; border-top:1px solid #2D2D4E; display:flex; z-index:100; padding-bottom:env(safe-area-inset-bottom); }
-  .nav-item { flex:1; padding:12px 0; text-align:center; color:#888; font-size:12px; cursor:pointer; background:none; border:none; font-weight:600; }
+  .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:#1A1A2E; border-top:1px solid #2D2D4E; display:flex; z-index:100; padding-bottom:env(safe-area-inset-bottom); overflow-x:auto; }
+  .nav-item { flex:1; min-width:65px; padding:12px 0; text-align:center; color:#888; font-size:11px; cursor:pointer; background:none; border:none; font-weight:600; }
   .nav-item.active { color:#C9A84C; }
-  .nav-icon { font-size:20px; display:block; margin-bottom:4px; }
+  .nav-icon { font-size:18px; display:block; margin-bottom:4px; }
   .content { padding:16px; }
   .card { background:#1A1A2E; border-radius:14px; border:1px solid #2D2D4E; margin-bottom:12px; overflow:hidden; }
   .leader-section-title { color:#C9A84C; font-size:15px; font-weight:700; margin:16px 0 8px 4px; display:flex; align-items:center; gap:6px; }
@@ -165,6 +171,7 @@
 
 <div class="bottom-nav" id="bottom-nav-bar">
   <button class="nav-item active" id="nav-trips" onclick="switchMainScreen('screen-trips','nav-trips')"><span class="nav-icon">🏕️</span>Trips</button>
+  <button class="nav-item" id="nav-plans" onclick="switchMainScreen('screen-plans','nav-plans')"><span class="nav-icon">🌍</span>Tour Plans</button>
   <button class="nav-item" id="nav-wallet" onclick="switchMainScreen('screen-wallet','nav-wallet')"><span class="nav-icon">👛</span>Global Wallet</button>
   <button class="nav-item" id="nav-reports" onclick="switchMainScreen('screen-reports','nav-reports')"><span class="nav-icon">📊</span>Reports</button>
   <button class="nav-item" id="nav-settings" onclick="switchMainScreen('screen-settings','nav-settings')"><span class="nav-icon">⚙️</span>Settings</button>
@@ -180,6 +187,17 @@
   <div class="content">
     <button class="btn btn-primary" id="new-trip-btn-main" onclick="openNewTripModal()" style="margin-bottom:20px">+ New Trip / Tour</button>
     <div id="trip-list"></div>
+  </div>
+</div>
+
+<div id="screen-plans" class="screen">
+  <div class="main-header">
+    <button class="refresh-top-btn" onclick="fetchRemoteData()">🔄 Refresh Data</button>
+    <h1>Global Tour Plans</h1><p>Master website itineraries and reference packages.</p>
+  </div>
+  <div class="content">
+    <button class="btn btn-primary" id="new-plan-btn-main" onclick="openAddPlanModal()" style="margin-bottom:20px">+ Add Master Tour Plan</button>
+    <div id="plans-list"></div>
   </div>
 </div>
 
@@ -301,6 +319,16 @@
   <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('modal-edit-trip')">Cancel</button><button class="btn btn-primary" onclick="saveEditTrip()">Save Changes</button></div>
 </div></div>
 
+<!-- Add Master Plan Modal -->
+<div class="modal-overlay hidden" id="modal-add-plan" onclick="closeModal('modal-add-plan')"><div class="modal-box" onclick="event.stopPropagation()">
+  <div class="modal-head"><h3 class="modal-title">Global Tour Plan</h3><button class="modal-close" onclick="closeModal('modal-add-plan')">×</button></div>
+  <input type="hidden" id="pl-id"/>
+  <div class="form-group"><label class="form-label">Plan Title *</label><input class="form-input" id="pl-title" placeholder="e.g. Kerala 5N/6D Premium"/></div>
+  <div class="form-group"><label class="form-label">Destination / Region</label><input class="form-input" id="pl-dest" placeholder="e.g. South India"/></div>
+  <div class="form-group"><label class="form-label">Full Itinerary / Website Description</label><textarea class="form-input" id="pl-content" rows="8" placeholder="Day 1: Arrival... \nDay 2: Sightseeing..."></textarea></div>
+  <button class="btn btn-primary" onclick="saveTourPlan()">Save Master Plan</button>
+</div></div>
+
 <!-- Add Master Itinerary / Stay Info Modal -->
 <div class="modal-overlay hidden" id="modal-add-itinerary" onclick="closeModal('modal-add-itinerary')"><div class="modal-box" onclick="event.stopPropagation()">
   <div class="modal-head"><h3 class="modal-title">Add / Edit Master Itinerary & Stay</h3><button class="modal-close" onclick="closeModal('modal-add-itinerary')">×</button></div>
@@ -401,7 +429,7 @@ const DEFAULT_CATEGORIES=[
 {id:"food",label:"🍽️ Food",color:"#FF6B35"},{id:"hotel",label:"🏨 Hotel",color:"#4ECDC4"},{id:"bus",label:"🚌 Bus / Travel",color:"#45B7D1"},{id:"vendor",label:"🏢 Local Vendor",color:"#96CEB4"},{id:"personal",label:"👤 Personal",color:"#FFEAA7"},{id:"ticket",label:"🎫 Tickets/Entry",color:"#DDA0DD"},{id:"misc",label:"📦 Miscellaneous",color:"#D7DBDD"}];
 const FUND_LABELS={company_advance:"🏢 Company Advance",collection:"💵 Client Collection",own_pocket:"👛 My Own Money",refund:"↩️ Refund Received"};
 const SK="mda_expense_v4";
-function loadData(){try{const r=localStorage.getItem(SK);let db=r?JSON.parse(r):{trips:[],categories:DEFAULT_CATEGORIES,globalFunds:[],leaders:[]};if(!db.categories)db.categories=DEFAULT_CATEGORIES;if(!db.globalFunds)db.globalFunds=[];if(!db.leaders)db.leaders=[];return db}catch(e){return{trips:[],categories:DEFAULT_CATEGORIES,globalFunds:[],leaders:[]}}}
+function loadData(){try{const r=localStorage.getItem(SK);let db=r?JSON.parse(r):{trips:[],categories:DEFAULT_CATEGORIES,globalFunds:[],leaders:[],tourPlans:[]};if(!db.categories)db.categories=DEFAULT_CATEGORIES;if(!db.globalFunds)db.globalFunds=[];if(!db.leaders)db.leaders=[];if(!db.tourPlans)db.tourPlans=[];return db}catch(e){return{trips:[],categories:DEFAULT_CATEGORIES,globalFunds:[],leaders:[],tourPlans:[]}}}
 function saveData(){try{localStorage.setItem(SK,JSON.stringify(DB))}catch(e){}}
 let DB=loadData(),currentTripId=null,currentTab="itinerary",_addEntryDayId=null,_editEntryDayId=null,_editEntryId=null,_editFundId=null;
 const SUPABASE_URL="https://ckgihbgxvrosppeforgu.supabase.co";
@@ -475,16 +503,18 @@ async function afterLogin(userId) {
   const tag = document.getElementById("main-brand-tag");
   const navWalletBtn = document.getElementById("nav-wallet");
   const newTripBtn = document.getElementById("new-trip-btn-main");
+  const newPlanBtn = document.getElementById("new-plan-btn-main");
 
   if (currentUser.role === "company") {
     tag.textContent = "Maharashtra Desha Adventure · Company Admin";
     if(navWalletBtn) navWalletBtn.style.display = "block";
     if(newTripBtn) newTripBtn.style.display = "block";
+    if(newPlanBtn) newPlanBtn.style.display = "block";
   } else {
     tag.textContent = `Maharashtra Desha Adventure · Trip Leader: ${currentUser.full_name}`;
-    // Completely hide Global Wallet from bottom nav for leaders
     if(navWalletBtn) navWalletBtn.style.display = "none";
     if(newTripBtn) newTripBtn.style.display = "none";
+    if(newPlanBtn) newPlanBtn.style.display = "none";
   }
 }
 
@@ -494,7 +524,7 @@ function logout(){sb.auth.signOut();location.reload()}
 async function fetchRemoteData(){
   if(!currentUser)return;
   try{
-    const[{data:trips},{data:cats},{data:days},{data:expenses},{data:funds},{data:profiles},{data:gfunds},{data:itineraries}]=await Promise.all([
+    const[{data:trips},{data:cats},{data:days},{data:expenses},{data:funds},{data:profiles},{data:gfunds},{data:itineraries},{data:plans}]=await Promise.all([
       sb.from("trips").select("*").order("created_at"),
       sb.from("expense_categories").select("*").order("created_at"),
       sb.from("trip_days").select("*"),
@@ -502,7 +532,8 @@ async function fetchRemoteData(){
       sb.from("trip_funds").select("*"),
       sb.from("profiles").select("id, full_name, role"),
       sb.from("global_funds").select("*"),
-      sb.from("trip_itinerary").select("*")
+      sb.from("trip_itinerary").select("*"),
+      sb.from("tour_plans").select("*").order("created_at")
     ]);
     
     const profileMap = {};
@@ -513,6 +544,8 @@ async function fetchRemoteData(){
 
     if(cats)DB.categories=cats.map(c=>({id:c.id,label:c.label,color:c.color}));
     if(gfunds)DB.globalFunds=gfunds.map(g=>({id:g.id,type:g.fund_type||g.type,amount:g.amount,source:g.source||"",note:g.note||"",date:g.fund_date||g.date}));
+    
+    if(plans)DB.tourPlans=plans.map(p=>({id:p.id,title:p.title,destination:p.destination||"",content:p.content||""}));
 
     if(trips)DB.trips=trips.map(t=>{
       const tDays=(days||[]).filter(d=>d.trip_id===t.id).map(d=>({id:d.id,date:d.day_date,label:d.label||"",entries:(expenses||[]).filter(e=>e.day_id===d.id).map(e=>({id:e.id,category:e.category_id,amount:e.amount,vendor:e.vendor||"",note:e.note||"",date:e.expense_date}))})).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
@@ -544,7 +577,8 @@ async function fetchRemoteData(){
         itinerary:tItinerary
       };
     });
-    saveData();isOnline=true;updateSyncBadge();renderTripList();if(currentTripId){renderTripHeader();switchTripTab(currentTab)}
+    saveData();isOnline=true;updateSyncBadge();renderTripList();renderTourPlans();
+    if(currentTripId){renderTripHeader();switchTripTab(currentTab)}
   }catch(e){isOnline=false;updateSyncBadge()}
 }
 
@@ -555,7 +589,94 @@ function getMonthStats(moStr){let inc=0,exp=0;DB.trips.forEach(t=>{t.days.forEac
 function openModal(id){document.getElementById(id).classList.remove("hidden")}function closeModal(id){document.getElementById(id).classList.add("hidden")}
 function switchMainScreen(screenId,navId){
   if(screenId === 'screen-wallet' && currentUser && currentUser.role !== 'company') return; // Guard for leaders
-  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById(screenId).classList.add("active");if(navId){document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));document.getElementById(navId).classList.add("active")}window.scrollTo(0,0);if(screenId==="screen-trips")renderTripList();if(screenId==="screen-wallet")renderWallet();if(screenId==="screen-reports")renderReports();if(screenId==="screen-settings")renderSettings()}
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById(screenId).classList.add("active");if(navId){document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));document.getElementById(navId).classList.add("active")}window.scrollTo(0,0);if(screenId==="screen-trips")renderTripList();if(screenId==="screen-plans")renderTourPlans();if(screenId==="screen-wallet")renderWallet();if(screenId==="screen-reports")renderReports();if(screenId==="screen-settings")renderSettings()}
+
+/* TOUR PLANS (TEMPLATES) */
+function renderTourPlans(){
+  const el = document.getElementById("plans-list");
+  if(!DB.tourPlans || !DB.tourPlans.length){
+    el.innerHTML='<div class="empty">No global tour plans added yet.</div>';
+    return;
+  }
+  let html = "";
+  DB.tourPlans.forEach(plan => {
+    html += `
+      <div class="plan-card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div>
+            <div class="plan-title">${plan.title}</div>
+            <div class="plan-dest">📍 ${plan.destination||'Destination not set'}</div>
+          </div>
+          ${currentUser && currentUser.role === "company" ? `
+          <div style="display:flex; gap:8px;">
+            <button class="icon-btn" style="color:#C9A84C" onclick="openEditPlanModal('${plan.id}')">✏️</button>
+            <button class="icon-btn-x" onclick="deleteTourPlan('${plan.id}')">×</button>
+          </div>
+          ` : ''}
+        </div>
+        <div class="plan-content">${plan.content}</div>
+      </div>
+    `;
+  });
+  el.innerHTML = html;
+}
+
+function openAddPlanModal() {
+  document.getElementById("pl-id").value = "";
+  document.getElementById("pl-title").value = "";
+  document.getElementById("pl-dest").value = "";
+  document.getElementById("pl-content").value = "";
+  openModal("modal-add-plan");
+}
+
+function openEditPlanModal(id) {
+  const plan = DB.tourPlans.find(p => p.id === id);
+  if(!plan) return;
+  document.getElementById("pl-id").value = plan.id;
+  document.getElementById("pl-title").value = plan.title;
+  document.getElementById("pl-dest").value = plan.destination || "";
+  document.getElementById("pl-content").value = plan.content || "";
+  openModal("modal-add-plan");
+}
+
+async function saveTourPlan() {
+  const id = document.getElementById("pl-id").value;
+  const title = document.getElementById("pl-title").value.trim();
+  const dest = document.getElementById("pl-dest").value.trim();
+  const content = document.getElementById("pl-content").value.trim();
+  if(!title) { alert("Title is required"); return; }
+
+  const planObj = { id: id || genId(), title, destination: dest, content };
+
+  if(isOnline && currentUser) {
+    const dbPayload = { id: planObj.id, company_id: currentUser.company_id, title, destination: dest, content };
+    const { error } = await sb.from("tour_plans").upsert(dbPayload);
+    if(error){ alert("Could not save tour plan online: " + error.message); return; }
+  }
+
+  if(!DB.tourPlans) DB.tourPlans = [];
+  if(id) {
+    const idx = DB.tourPlans.findIndex(p => p.id === id);
+    if(idx >= 0) DB.tourPlans[idx] = planObj;
+  } else {
+    DB.tourPlans.push(planObj);
+  }
+  
+  saveData();
+  closeModal("modal-add-plan");
+  renderTourPlans();
+}
+
+async function deleteTourPlan(id) {
+  if(!confirm("Delete this master tour plan?")) return;
+  if(isOnline) {
+    const { error } = await sb.from("tour_plans").delete().eq("id", id);
+    if(error){ alert("Could not delete online: " + error.message); return; }
+  }
+  DB.tourPlans = DB.tourPlans.filter(p => p.id !== id);
+  saveData();
+  renderTourPlans();
+}
 
 function renderWallet(){
   if(currentUser && currentUser.role !== 'company') return;
@@ -756,7 +877,7 @@ async function saveCategory(){const id=document.getElementById("mc-id").value,la
 async function deleteCategory(id){if(!confirm("Delete this category?"))return;DB.categories=DB.categories.filter(x=>x.id!==id);if(isOnline)await sb.from("expense_categories").delete().eq("id",id);saveData();renderSettings()}
 function exportData(){const dataStr="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(DB)),el=document.createElement("a");el.setAttribute("href",dataStr);el.setAttribute("download",`mda_expense_backup_${todayStr()}.json`);document.body.appendChild(el);el.click();el.remove()}
 function importData(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const importedData=JSON.parse(e.target.result);if(importedData.trips&&importedData.categories){if(!importedData.globalFunds)importedData.globalFunds=[];DB=importedData;saveData();alert("Backup restored successfully!");renderSettings()}else alert("Invalid backup file.")}catch(err){alert("Error reading file.")}};reader.readAsText(file)}
-function clearAllData(){if(confirm("🚨 WARNING: This will delete ALL trips, wallet records, and settings permanently. Are you absolutely sure?")){DB={trips:[],categories:DEFAULT_CATEGORIES,globalFunds:[],leaders:[]};saveData();alert("Data wiped clean.");switchMainScreen("screen-trips","nav-trips")}}
+function clearAllData(){if(confirm("🚨 WARNING: This will delete ALL trips, wallet records, and settings permanently. Are you absolutely sure?")){DB={trips:[],categories:DEFAULT_CATEGORIES,globalFunds:[],leaders:[],tourPlans:[]};saveData();alert("Data wiped clean.");switchMainScreen("screen-trips","nav-trips")}}
 
 function renderReports(){
   const content=document.getElementById("report-content"), months={};
@@ -1365,7 +1486,7 @@ function shareWhatsApp(){
   const balance=totalFunds-totalSpent;
 
   let msg=`🏔️ *MAHARASHTRA DESHA ADVENTURE* 🏔️\n`;
-  msg+=`📋 *TRIP STATEMENT & MASTER ITINERARY*\n`;
+  msg+=`📋 *TRIP EXPENSE STATEMENT*\n`;
   msg+=`━━━━━━━━━━━━━━━━━━━━━━\n`;
   msg+=`⛺ *Trip:* ${t.name}\n`;
   if(t.destination) msg+=`📍 *Destination:* ${t.destination}\n`;
@@ -1373,24 +1494,27 @@ function shareWhatsApp(){
   msg+=`👤 *Trip Leader:* ${t.leader_name || 'N/A'}\n`;
   msg+=`━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
-  if(t.itinerary && t.itinerary.length > 0) {
-    msg+=`🗺️ *MASTER ITINERARY & STAYS:*\n`;
-    t.itinerary.forEach(item => {
-      msg+=`• *${item.date}* (${item.label||'Day'}): Stay: ${item.hotel||'-'} | Contact: ${item.contact||'-'}\n`;
-    });
-    msg+=`\n`;
-  }
-
   msg+=`💰 *FINANCIAL SUMMARY:*\n`;
   msg+=`• Total Funds: *₹${Number(totalFunds).toLocaleString("en-IN")}*\n`;
   msg+=`• Total Expenses: *₹${Number(totalSpent).toLocaleString("en-IN")}*\n`;
   msg+=`• Net Balance: *₹${Number(balance).toLocaleString("en-IN")}* ${balance>=0?"✅":"❌ (Deficit)"}\n\n`;
 
-  if(t.manifest && t.manifest.length > 0) {
-    msg+=`👥 *PASSENGER MANIFEST (${t.manifest.length} pax):*\n`;
-    t.manifest.forEach((c, i) => {
-      msg+=`${i+1}. *${c.name}* (${c.sharing || 'Standard'}, Age: ${c.age||'-'})\n`;
-      if(c.transit) msg+=`   _Transit: ${c.transit}_\n`;
+  if(t.days && t.days.length > 0) {
+    msg+=`📅 *DAY-WISE EXPENSE DETAILS:*\n`;
+    t.days.forEach(d => {
+      const dt=d.entries.reduce((s,e)=>s+Number(e.amount),0);
+      msg+=`🔹 *${d.date}${d.label?" - "+d.label:""}* (Total: ₹${dt.toLocaleString("en-IN")})\n`;
+      if(d.entries.length === 0) {
+        msg+=`   _No expenses for this day_\n`;
+      } else {
+        d.entries.forEach(e => {
+          const cat=DB.categories.find(c=>c.id===e.category);
+          msg+=`   - ${cat?cat.label:e.category}: ₹${Number(e.amount).toLocaleString("en-IN")}`;
+          if(e.vendor) msg+=` [${e.vendor}]`;
+          if(e.note) msg+=` (${e.note})`;
+          msg+=`\n`;
+        });
+      }
     });
     msg+=`\n`;
   }
@@ -1415,7 +1539,7 @@ function downloadPDF(){
       <div style="border-bottom:3px solid #C9A84C; padding-bottom:15px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end;">
         <div>
           <div style="font-size:11px; font-weight:800; letter-spacing:3px; color:#C9A84C; text-transform:uppercase;">Maharashtra Desha Adventure</div>
-          <h1 style="margin:5px 0 0 0; font-size:22px; color:#111; font-weight:800;">Official Tour Master Itinerary, Manifest & Financial Report</h1>
+          <h1 style="margin:5px 0 0 0; font-size:22px; color:#111; font-weight:800;">Official Tour Expense Report</h1>
         </div>
         <div style="text-align:right; font-size:11px; color:#666;">
           <strong>Date:</strong> ${todayStr()}
@@ -1430,7 +1554,7 @@ function downloadPDF(){
             <td style="padding:3px 0;"><strong>Start Date:</strong> ${t.date || 'N/A'}</td>
           </tr>
           <tr>
-            <td style="padding:3px 0;"><strong>Total Passengers:</strong> ${t.manifest ? t.manifest.length : (t.customers || 'N/A')} Pax</td>
+            <td style="padding:3px 0;"><strong>Total Passengers:</strong> ${t.customers || (t.manifest ? t.manifest.length : 'N/A')} Pax</td>
             <td style="padding:3px 0;"><strong>Trip Leader:</strong> ${t.leader_name || 'N/A'}</td>
           </tr>
         </table>
@@ -1450,45 +1574,45 @@ function downloadPDF(){
           <div style="font-size:18px; font-weight:800; color:${balance>=0?'#7d6608':'#922b21'}; margin-top:4px;">${fmt(balance)}</div>
         </div>
       </div>
-
-      <h3 style="font-size:14px; color:#111; border-bottom:1px solid #ccc; padding-bottom:5px; margin-top:20px; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">🗺️ Master Itinerary, Stays & Contact Persons</h3>
   `;
 
-  if(!t.itinerary || !t.itinerary.length){
-    html+=`<p style="font-size:12px; color:#666; font-style:italic;">No master itinerary or stay details added.</p>`;
-  }else{
-    t.itinerary.forEach(item=>{
-      html+=`<div style="margin-bottom:10px; border:1px solid #ddd; border-radius:6px; padding:10px; font-size:12px;">
-        <strong>📅 ${item.date} — ${item.label||''}</strong><br/>
-        <em>Spots/Activity:</i> ${item.desc||'-'}<br/>
-        <strong>🏨 Stay:</strong> ${item.hotel||'-'} | <strong>Contact:</strong> ${item.contact||'-'} | <strong>Map:</strong> ${item.map||'N/A'}
-      </div>`;
+  if(t.days && t.days.length > 0) {
+    html+=`<h3 style="font-size:14px; color:#111; border-bottom:1px solid #ccc; padding-bottom:5px; margin-top:20px; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">📅 Day-wise Expenses Breakdown</h3>`;
+    t.days.forEach(d=>{
+      const dt=d.entries.reduce((s,e)=>s+Number(e.amount),0);
+      html+=`<div style="margin-bottom:15px; border:1px solid #ccc; border-radius:4px; overflow:hidden;">
+        <div style="background:#ecf0f1; padding:8px 12px; display:flex; justify-content:space-between; font-weight:bold; font-size:13px; color:#2c3e50;">
+          <span>📅 Date: ${d.date} ${d.label ? '— ' + d.label : ''}</span>
+          <span>Day Total: ${fmt(dt)}</span>
+        </div>`;
+      if(!d.entries.length){
+        html+=`<div style="padding:8px 12px; font-size:12px; color:#777; font-style:italic;">No expenses recorded for this day.</div>`;
+      }else{
+        html+=`<table style="width:100%; border-collapse:collapse; font-size:12px;">
+          <thead>
+            <tr style="background:#f8f9fa; color:#333; text-align:left;">
+              <th style="padding:6px 10px; border-bottom:1px solid #ddd;">Category</th>
+              <th style="padding:6px 10px; border-bottom:1px solid #ddd;">Vendor / Payee</th>
+              <th style="padding:6px 10px; border-bottom:1px solid #ddd;">Description / Note</th>
+              <th style="padding:6px 10px; border-bottom:1px solid #ddd; text-align:right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>`;
+        d.entries.forEach(e=>{
+          const cat=DB.categories.find(c=>c.id===e.category);
+          html+=`<tr>
+            <td style="padding:6px 10px; border-bottom:1px solid #eee;">${cat?cat.label:e.category}</td>
+            <td style="padding:6px 10px; border-bottom:1px solid #eee;">${e.vendor||'-'}</td>
+            <td style="padding:6px 10px; border-bottom:1px solid #eee;">${e.note||'-'}</td>
+            <td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right; font-weight:600;">${fmt(e.amount)}</td>
+          </tr>`;
+        });
+        html+=`</tbody></table>`;
+      }
+      html+=`</div>`;
     });
-  }
-
-  html+=`<h3 style="font-size:14px; color:#111; border-bottom:1px solid #ccc; padding-bottom:5px; margin-top:20px; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">👥 Passenger Manifest & Logistics</h3>`;
-  if(!t.manifest || !t.manifest.length){
-    html+=`<p style="font-size:12px; color:#666; font-style:italic;">No passenger manifest details added.</p>`;
-  }else{
-    html+=`<table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:12px;">
-      <thead>
-        <tr style="background:#2c3e50; color:#fff; text-align:left;">
-          <th style="padding:8px; border:1px solid #2c3e50;">Name</th>
-          <th style="padding:8px; border:1px solid #2c3e50;">Sharing & Age</th>
-          <th style="padding:8px; border:1px solid #2c3e50;">Aadhaar / Hometown</th>
-          <th style="padding:8px; border:1px solid #2c3e50;">Transit & Pick-up Details</th>
-        </tr>
-      </thead>
-      <tbody>`;
-    t.manifest.forEach(c=>{
-      html+=`<tr>
-        <td style="padding:7px 8px; border:1px solid #ddd; font-weight:600;">${c.name}</td>
-        <td style="padding:7px 8px; border:1px solid #ddd;">${c.sharing||'-'} (Age: ${c.age||'-'})</td>
-        <td style="padding:7px 8px; border:1px solid #ddd;">${c.aadhaar||'-'}<br/><span style="color:#555;">From: ${c.origin||'-'}</span></td>
-        <td style="padding:7px 8px; border:1px solid #ddd;">${c.transit||'-'}</td>
-      </tr>`;
-    });
-    html+=`</tbody></table>`;
+  } else {
+    html+=`<p style="font-size:12px; color:#666; font-style:italic;">No days or expenses logged yet.</p>`;
   }
 
   html+=`
