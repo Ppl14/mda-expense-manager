@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0D0D1A"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<title>MDA Expense Manager Pro</title>
+<title>Maharashtra Desha Adventure · Operations Suite</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   #login-screen { position:fixed; inset:0; background:#0D0D1A; z-index:999; display:flex; align-items:center; justify-content:center; padding:20px; }
@@ -22,7 +22,7 @@
   .sync-off { background:#EC706333; color:#EC7063; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { margin:0; padding:0; font-family:'Segoe UI',system-ui,sans-serif; background:#0D0D1A; color:#EEE; min-height:100vh; overscroll-behavior:none; padding-bottom:70px; }
-  input,select,button { font-family:inherit; }
+  input,select,textarea,button { font-family:inherit; }
   input[type="date"],input[type="color"] { color-scheme:dark; }
   select option { background:#1A1A2E; }
   ::-webkit-scrollbar { width:0; }
@@ -33,7 +33,21 @@
   .brand-tag { font-size:11px; letter-spacing:3px; color:#C9A84C; text-transform:uppercase; margin-bottom:8px; }
   .main-header h1 { margin:0; color:#E8D5A3; font-size:26px; font-weight:800; letter-spacing:-.5px; }
   .main-header p { color:#666; margin:6px 0 0; font-size:14px; }
-  .trip-header { background:#1A1A2E; padding:40px 16px 16px; border-bottom:1px solid #2D2D4E; }
+  
+  /* Two-column grid boxes on main screen */
+  .trip-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 10px; }
+  .trip-box-card { background: #1A1A2E; border: 1px solid #2D2D4E; border-radius: 16px; padding: 16px 12px; min-height: 140px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: transform 0.1s, border-color 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .trip-box-card:active { transform: scale(0.97); border-color: #C9A84C; }
+  .trip-box-name { color: #E8D5A3; font-size: 16px; font-weight: 700; word-break: break-word; text-transform: capitalize; }
+  .trip-box-dest { color: #888; font-size: 11px; margin-top: 2px; }
+  
+  /* Two separate action buttons inside each trip card box as requested */
+  .trip-box-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .box-action-btn { flex: 1; padding: 8px 4px; border-radius: 8px; border: none; font-size: 11px; font-weight: 700; cursor: pointer; text-align: center; }
+  .btn-itinerary-box { background: #2D2D4E; color: #C9A84C; border: 1px solid #C9A84C55; }
+  .btn-expense-box { background: #C9A84C; color: #0D0D1A; }
+
+  .trip-header { background:#1A1A2E; padding:30px 16px 16px; border-bottom:1px solid #2D2D4E; }
   .trip-header-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   .back-btn { background:none; border:none; color:#C9A84C; font-size:15px; cursor:pointer; padding:0; }
   .trip-header-actions { display:flex; gap:8px; align-items:center; }
@@ -44,8 +58,9 @@
   .stats-row { display:flex; gap:16px; margin-top:12px; }
   .stat-val { font-weight:700; font-size:18px; }
   .stat-lbl { color:#666; font-size:11px; }
-  .tabs { display:flex; background:#1A1A2E; border-bottom:1px solid #2D2D4E; }
-  .tab { flex:1; padding:12px 0; border:none; background:transparent; color:#555; font-weight:500; font-size:14px; cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; }
+
+  .tabs { display:flex; background:#1A1A2E; border-bottom:1px solid #2D2D4E; overflow-x:auto; }
+  .tab { flex:1; min-width:85px; padding:12px 4px; border:none; background:transparent; color:#555; font-weight:500; font-size:12px; cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; white-space:nowrap; text-align:center; }
   .tab.active { color:#E8D5A3; font-weight:700; border-bottom-color:#C9A84C; }
   .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:#1A1A2E; border-top:1px solid #2D2D4E; display:flex; z-index:100; padding-bottom:env(safe-area-inset-bottom); }
   .nav-item { flex:1; padding:12px 0; text-align:center; color:#888; font-size:12px; cursor:pointer; background:none; border:none; font-weight:600; }
@@ -53,14 +68,6 @@
   .nav-icon { font-size:20px; display:block; margin-bottom:4px; }
   .content { padding:16px; }
   .card { background:#1A1A2E; border-radius:14px; border:1px solid #2D2D4E; margin-bottom:12px; overflow:hidden; }
-  .trip-card { padding:16px; cursor:pointer; display:flex; justify-content:space-between; align-items:flex-start; }
-  .trip-card-content { flex:1; }
-  .trip-name { color:#E8D5A3; font-weight:700; font-size:17px; }
-  .trip-dest { color:#888; font-size:13px; margin-top:2px; }
-  .trip-date { color:#666; font-size:12px; margin-top:4px; }
-  .trip-card-right { text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
-  .trip-amt { color:#EC7063; font-weight:700; font-size:16px; }
-  .trip-bal { font-size:12px; }
   .leader-section-title { color:#C9A84C; font-size:15px; font-weight:700; margin:16px 0 8px 4px; display:flex; align-items:center; gap:6px; }
   .day-header { padding:12px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #2D2D4E; }
   .day-date { color:#C9A84C; font-weight:700; font-size:16px; }
@@ -121,7 +128,20 @@
   .cat-info { display:flex; align-items:center; gap:10px; }
   .cat-color-box { width:16px; height:16px; border-radius:4px; }
 
-  /* Printable Report Sheet styles used for clean native printing */
+  /* Manifest & Itinerary additions */
+  .manifest-card { background:#1A1A2E; border-radius:12px; border:1px solid #2D2D4E; padding:14px; margin-bottom:10px; display:flex; gap:12px; align-items:flex-start; }
+  .client-avatar { width:48px; height:48px; border-radius:8px; background:#2D2D4E; object-fit:cover; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; overflow:hidden; }
+  .client-info { flex:1; }
+  .client-name { color:#E8D5A3; font-weight:700; font-size:15px; }
+  .client-detail { color:#888; font-size:12px; margin-top:2px; }
+  .client-transit { color:#4ECDC4; font-size:12px; margin-top:4px; font-weight:500; }
+  
+  .itinerary-box { background:#1A1A2E; border:1px solid #2D2D4E; border-radius:12px; padding:14px; margin-bottom:12px; }
+  .itinerary-title { color:#C9A84C; font-weight:700; font-size:15px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; }
+  .itinerary-desc { color:#DDD; font-size:13px; margin-bottom:8px; line-height:1.4; }
+  .hotel-contact-box { background:#0D0D1A; border-radius:8px; padding:10px; font-size:12px; color:#AAA; margin-top:8px; display:flex; justify-content:space-between; align-items:center; }
+  .map-link-btn { background:#25D36622; border:1px solid #25D36655; color:#25D366; padding:4px 10px; border-radius:6px; text-decoration:none; font-weight:600; font-size:11px; display:inline-block; }
+
   #print-container { display: none; }
   @media print {
     body * { visibility: hidden; }
@@ -143,9 +163,9 @@
   </div>
 </div>
 
-<div class="bottom-nav">
+<div class="bottom-nav" id="bottom-nav-bar">
   <button class="nav-item active" id="nav-trips" onclick="switchMainScreen('screen-trips','nav-trips')"><span class="nav-icon">🏕️</span>Trips</button>
-  <button class="nav-item" id="nav-wallet" onclick="switchMainScreen('screen-wallet','nav-wallet')"><span class="nav-icon">👛</span>Wallet</button>
+  <button class="nav-item" id="nav-wallet" onclick="switchMainScreen('screen-wallet','nav-wallet')"><span class="nav-icon">👛</span>Global Wallet</button>
   <button class="nav-item" id="nav-reports" onclick="switchMainScreen('screen-reports','nav-reports')"><span class="nav-icon">📊</span>Reports</button>
   <button class="nav-item" id="nav-settings" onclick="switchMainScreen('screen-settings','nav-settings')"><span class="nav-icon">⚙️</span>Settings</button>
 </div>
@@ -154,11 +174,11 @@
   <div class="main-header">
     <button class="refresh-top-btn" onclick="fetchRemoteData()">🔄 Refresh Data</button>
     <div class="brand-tag" id="main-brand-tag">Maharashtra Desha Adventure</div>
-    <h1>Expense Manager <span class="sync-badge sync-on" id="sync-badge">● Synced</span></h1>
-    <p>Organize tours, clients, and vendors.</p>
+    <h1>Assigned Trips <span class="sync-badge sync-on" id="sync-badge">● Synced</span></h1>
+    <p>Select a tour box: Open <strong>Master Itinerary</strong> or <strong>Trip Expenses</strong> directly.</p>
   </div>
   <div class="content">
-    <button class="btn btn-primary" onclick="openNewTripModal()" style="margin-bottom:20px">+ New Trip / Tour</button>
+    <button class="btn btn-primary" id="new-trip-btn-main" onclick="openNewTripModal()" style="margin-bottom:20px">+ New Trip / Tour</button>
     <div id="trip-list"></div>
   </div>
 </div>
@@ -166,22 +186,26 @@
 <div id="screen-wallet" class="screen">
   <div class="main-header">
     <button class="refresh-top-btn" onclick="fetchRemoteData()">🔄 Refresh Data</button>
-    <h1>Global Wallet</h1><p>Manage general money outside of specific trips</p>
+    <h1>Global Wallet</h1><p>Manage company-level funds, office advances, and general expenses</p>
   </div>
   <div class="content">
     <div class="summary-card">
-      <div class="summary-title" style="text-align:center;color:#888;">Available Balance</div>
+      <div class="summary-title" style="text-align:center;color:#888;">Global Available Balance</div>
       <div class="wallet-balance-box" id="wallet-balance">₹0.00</div>
       <div class="wallet-stats">
-        <div><span style="color:#888;font-size:12px;">Total In</span><br/><strong style="color:#27AE60;font-size:16px;" id="wallet-in">₹0</strong></div>
-        <div style="text-align:right;"><span style="color:#888;font-size:12px;">Total Out</span><br/><strong style="color:#EC7063;font-size:16px;" id="wallet-out">₹0</strong></div>
+        <div><span style="color:#888;font-size:12px;">Total Income In</span><br/><strong style="color:#27AE60;font-size:16px;" id="wallet-in">₹0</strong></div>
+        <div style="text-align:right;"><span style="color:#888;font-size:12px;">Total Expenses Out</span><br/><strong style="color:#EC7063;font-size:16px;" id="wallet-out">₹0</strong></div>
       </div>
     </div>
-    <div class="btn-row" style="margin-bottom:20px;" id="wallet-actions-row">
-      <button class="btn btn-success" onclick="openGlobalTx('income')">⬇️ Add Income</button>
-      <button class="btn btn-danger" onclick="openGlobalTx('expense')">⬆️ Add Expense</button>
+    <div class="btn-row" style="margin-bottom:16px;" id="wallet-actions-row">
+      <button class="btn btn-success" onclick="openGlobalTx('income')">➕ Add Global Fund (Income)</button>
+      <button class="btn btn-danger" onclick="openGlobalTx('expense')">➖ Remove Global Fund (Expense)</button>
     </div>
-    <h3 style="color:#E8D5A3;font-size:16px;margin-bottom:10px;">Recent Transactions</h3>
+    <div class="btn-row" style="margin-bottom:20px;">
+      <button class="btn btn-whatsapp" onclick="shareGlobalWalletWhatsApp()">📤 Share Wallet on WhatsApp</button>
+      <button class="btn btn-pdf" onclick="downloadGlobalWalletPDF()" style="margin-top:0;">📄 Print / PDF Wallet</button>
+    </div>
+    <h3 style="color:#E8D5A3;font-size:16px;margin-bottom:10px;">Global Transactions History</h3>
     <div id="wallet-list"></div>
   </div>
 </div>
@@ -189,7 +213,7 @@
 <div id="screen-reports" class="screen">
   <div class="main-header">
     <button class="refresh-top-btn" onclick="fetchRemoteData()">🔄 Refresh Data</button>
-    <h1>Monthly Reports</h1><p>Overall income and expense by month</p>
+    <h1>Monthly Reports</h1><p>Overall company financial statement by month</p>
   </div>
   <div class="content" id="report-content"></div>
 </div>
@@ -224,7 +248,7 @@
 <div id="screen-trip" class="screen">
   <div class="trip-header">
     <div class="trip-header-top">
-      <button class="back-btn" onclick="goBackToTrips()">← Back</button>
+      <button class="back-btn" onclick="goBackToTrips()">← Back to Trips</button>
       <div class="trip-header-actions">
         <button class="edit-trip-btn" onclick="openEditTrip()">✏️ Edit</button>
         <button class="delete-trip-btn" onclick="deleteCurrentTrip()">🗑️ Delete</button>
@@ -238,27 +262,29 @@
     </div>
   </div>
   <div class="tabs">
-    <button class="tab active" onclick="switchTripTab('days')" id="tab-days">📅 Days</button>
-    <button class="tab" onclick="switchTripTab('funds')" id="tab-funds">💵 Funds</button>
+    <button class="tab active" onclick="switchTripTab('itinerary')" id="tab-itinerary">🗺️ Master Itinerary</button>
+    <button class="tab" onclick="switchTripTab('days')" id="tab-days">💸 Trip Expenses</button>
+    <button class="tab" onclick="switchTripTab('funds')" id="tab-funds">💵 Trip Funds</button>
+    <button class="tab" onclick="switchTripTab('manifest')" id="tab-manifest">👥 Passenger Manifest</button>
     <button class="tab" onclick="switchTripTab('summary')" id="tab-summary">📊 Summary</button>
   </div>
   <div class="content" id="tab-content"></div>
 </div>
 
 <div class="modal-overlay hidden" id="modal-global-tx" onclick="closeModal('modal-global-tx')"><div class="modal-box" onclick="event.stopPropagation()">
-  <div class="modal-head"><h3 class="modal-title" id="gtx-title">Add Transaction</h3><button class="modal-close" onclick="closeModal('modal-global-tx')">×</button></div>
+  <div class="modal-head"><h3 class="modal-title" id="gtx-title">Global Transaction</h3><button class="modal-close" onclick="closeModal('modal-global-tx')">×</button></div>
   <input type="hidden" id="gtx-id"/><input type="hidden" id="gtx-type"/>
   <div class="form-group"><label class="form-label">Amount (₹)</label><input class="form-input" type="number" id="gtx-amt" inputmode="numeric"/></div>
-  <div class="form-group"><label class="form-label" id="gtx-source-lbl">Source / Payee</label><input class="form-input" id="gtx-source" placeholder="e.g. Office Advance, EMI, Bus Agency"/></div>
-  <div class="form-group"><label class="form-label">Note</label><input class="form-input" id="gtx-note" placeholder="e.g. Received for multiple trips"/></div>
+  <div class="form-group"><label class="form-label" id="gtx-source-lbl">Source / Payee</label><input class="form-input" id="gtx-source" placeholder="e.g. Office Collection, Bank Transfer, Vendor Payout"/></div>
+  <div class="form-group"><label class="form-label">Note</label><input class="form-input" id="gtx-note" placeholder="e.g. General company funding"/></div>
   <div class="form-group"><label class="form-label">Date</label><input class="form-input" type="date" id="gtx-date"/></div>
-  <button class="btn btn-primary" onclick="saveGlobalTx()" id="gtx-save-btn">Save</button>
+  <button class="btn btn-primary" onclick="saveGlobalTx()" id="gtx-save-btn">Save Global Transaction</button>
 </div></div>
 
 <div class="modal-overlay hidden" id="modal-new-trip" onclick="closeModal('modal-new-trip')"><div class="modal-box" onclick="event.stopPropagation()">
   <div class="modal-head"><h3 class="modal-title">New Trip</h3><button class="modal-close" onclick="closeModal('modal-new-trip')">×</button></div>
-  <div class="form-group"><label class="form-label">Trip Name *</label><input class="form-input" id="nt-name" placeholder="e.g. Kedarnath Yatra"/></div>
-  <div class="form-group"><label class="form-label">Destination</label><input class="form-input" id="nt-dest" placeholder="e.g. Kedarnath"/></div>
+  <div class="form-group"><label class="form-label">Trip Name *</label><input class="form-input" id="nt-name" placeholder="e.g. Kerala Backwaters Expedition"/></div>
+  <div class="form-group"><label class="form-label">Destination</label><input class="form-input" id="nt-dest" placeholder="e.g. Munnar / Alleppey"/></div>
   <div class="form-group" id="group-assign-leader"><label class="form-label">Assign Trip Leader</label><select class="form-select" id="nt-leader"></select></div>
   <div class="form-group"><label class="form-label">Start Date</label><input class="form-input" type="date" id="nt-date"/></div>
   <div class="form-group"><label class="form-label">No. of Customers</label><input class="form-input" type="number" id="nt-cust"/></div>
@@ -275,10 +301,23 @@
   <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('modal-edit-trip')">Cancel</button><button class="btn btn-primary" onclick="saveEditTrip()">Save Changes</button></div>
 </div></div>
 
+<!-- Add Master Itinerary / Stay Info Modal -->
+<div class="modal-overlay hidden" id="modal-add-itinerary" onclick="closeModal('modal-add-itinerary')"><div class="modal-box" onclick="event.stopPropagation()">
+  <div class="modal-head"><h3 class="modal-title">Add / Edit Master Itinerary & Stay</h3><button class="modal-close" onclick="closeModal('modal-add-itinerary')">×</button></div>
+  <input type="hidden" id="it-id"/>
+  <div class="form-group"><label class="form-label">Date *</label><input class="form-input" type="date" id="it-date"/></div>
+  <div class="form-group"><label class="form-label">Day Headline / Route</label><input class="form-input" id="it-label" placeholder="e.g. Day 1: Cochin Arrival to Munnar"/></div>
+  <div class="form-group"><label class="form-label">Spot Details & Activities</label><textarea class="form-input" id="it-desc" rows="2" placeholder="e.g. Pickup from airport, drive to Munnar tea gardens, evening waterfall visit."></textarea></div>
+  <div class="form-group"><label class="form-label">Stay / Hotel Name</label><input class="form-input" id="it-hotel" placeholder="e.g. Hill Vista Resort Munnar"/></div>
+  <div class="form-group"><label class="form-label">Hotel Contact Person & Number</label><input class="form-input" id="it-contact" placeholder="e.g. Manager Mr. Rajesh - 9876543210"/></div>
+  <div class="form-group"><label class="form-label">Google Map Location Link</label><input class="form-input" id="it-map" placeholder="https://goo.gl/maps/..."/></div>
+  <button class="btn btn-primary" onclick="saveItineraryItem()">Save Master Itinerary Stay</button>
+</div></div>
+
 <div class="modal-overlay hidden" id="modal-add-day" onclick="closeModal('modal-add-day')"><div class="modal-box" onclick="event.stopPropagation()">
-  <div class="modal-head"><h3 class="modal-title">Add Day</h3><button class="modal-close" onclick="closeModal('modal-add-day')">×</button></div>
+  <div class="modal-head"><h3 class="modal-title">Add Day for Expenses</h3><button class="modal-close" onclick="closeModal('modal-add-day')">×</button></div>
   <div class="form-group"><label class="form-label">Date</label><input class="form-input" type="date" id="ad-date"/></div>
-  <div class="form-group"><label class="form-label">Label (optional)</label><input class="form-input" id="ad-label" placeholder="e.g. Arrival Day"/></div>
+  <div class="form-group"><label class="form-label">Label (optional)</label><input class="form-input" id="ad-label" placeholder="e.g. Day 1 Expenses"/></div>
   <button class="btn btn-primary" onclick="addDay()">Add Day</button>
 </div></div>
 
@@ -303,7 +342,7 @@
 </div></div>
 
 <div class="modal-overlay hidden" id="modal-add-fund" onclick="closeModal('modal-add-fund')"><div class="modal-box" onclick="event.stopPropagation()">
-  <div class="modal-head"><h3 class="modal-title">Add Fund / Collection</h3><button class="modal-close" onclick="closeModal('modal-add-fund')">×</button></div>
+  <div class="modal-head"><h3 class="modal-title">Add Trip Fund / Collection</h3><button class="modal-close" onclick="closeModal('modal-add-fund')">×</button></div>
   <div class="form-group"><label class="form-label">Fund Type</label><select class="form-select" id="af-type">
     <option value="collection">💵 Client Collection</option><option value="company_advance">🏢 Company Advance</option><option value="own_pocket">👛 My Own Money</option><option value="refund">↩️ Refund Received</option>
   </select></div>
@@ -326,6 +365,26 @@
   <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('modal-edit-fund')">Cancel</button><button class="btn btn-primary" onclick="saveEditFund()">Save Changes</button></div>
 </div></div>
 
+<!-- Add Client Manifest Modal -->
+<div class="modal-overlay hidden" id="modal-add-client" onclick="closeModal('modal-add-client')"><div class="modal-box" onclick="event.stopPropagation()">
+  <div class="modal-head"><h3 class="modal-title">Add Passenger / Client</h3><button class="modal-close" onclick="closeModal('modal-add-client')">×</button></div>
+  <div class="form-group"><label class="form-label">Full Name *</label><input class="form-input" id="cl-name" placeholder="e.g. Rohit Sharma"/></div>
+  <div class="form-group"><label class="form-label">Front Photo Image URL (Optional)</label><input class="form-input" id="cl-photo" placeholder="https://... or leave blank"/></div>
+  <div class="row" style="display:flex;gap:10px;">
+    <div class="form-group" style="flex:1"><label class="form-label">Age</label><input class="form-input" type="number" id="cl-age" placeholder="28"/></div>
+    <div class="form-group" style="flex:1"><label class="form-label">Sharing Type</label><select class="form-select" id="cl-sharing">
+      <option value="Double Sharing">Double Sharing</option>
+      <option value="Triple Sharing">Triple Sharing</option>
+      <option value="Quad Sharing">Quad Sharing</option>
+      <option value="Solo">Solo</option>
+    </select></div>
+  </div>
+  <div class="form-group"><label class="form-label">Aadhaar Number</label><input class="form-input" id="cl-aadhaar" placeholder="XXXX-XXXX-XXXX"/></div>
+  <div class="form-group"><label class="form-label">Hometown / Origin</label><input class="form-input" id="cl-origin" placeholder="e.g. Pune / Mumbai"/></div>
+  <div class="form-group"><label class="form-label">Transit / Pick-up & Train Details</label><textarea class="form-input" id="cl-transit" rows="2" placeholder="e.g. Pune to Mumbai by bus, Mumbai to Cochin train 12618 (Coach B3). Direct pickup at Cochin station."></textarea></div>
+  <button class="btn btn-primary" onclick="saveClientManifest()">Add to Manifest</button>
+</div></div>
+
 <div class="modal-overlay hidden" id="modal-add-cat" onclick="closeModal('modal-add-cat')"><div class="modal-box" onclick="event.stopPropagation()">
   <div class="modal-head"><h3 class="modal-title" id="mc-title">New Category</h3><button class="modal-close" onclick="closeModal('modal-add-cat')">×</button></div>
   <input type="hidden" id="mc-id"/>
@@ -344,7 +403,7 @@ const FUND_LABELS={company_advance:"🏢 Company Advance",collection:"💵 Clien
 const SK="mda_expense_v4";
 function loadData(){try{const r=localStorage.getItem(SK);let db=r?JSON.parse(r):{trips:[],categories:DEFAULT_CATEGORIES,globalFunds:[],leaders:[]};if(!db.categories)db.categories=DEFAULT_CATEGORIES;if(!db.globalFunds)db.globalFunds=[];if(!db.leaders)db.leaders=[];return db}catch(e){return{trips:[],categories:DEFAULT_CATEGORIES,globalFunds:[],leaders:[]}}}
 function saveData(){try{localStorage.setItem(SK,JSON.stringify(DB))}catch(e){}}
-let DB=loadData(),currentTripId=null,currentTab="days",_addEntryDayId=null,_editEntryDayId=null,_editEntryId=null,_editFundId=null;
+let DB=loadData(),currentTripId=null,currentTab="itinerary",_addEntryDayId=null,_editEntryDayId=null,_editEntryId=null,_editFundId=null;
 const SUPABASE_URL="https://ckgihbgxvrosppeforgu.supabase.co";
 const SUPABASE_KEY="sb_publishable_NvWWL7_RNTGtWWt5WFMLYQ_s8sVekUC";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
@@ -414,11 +473,18 @@ async function afterLogin(userId) {
   await fetchRemoteData();
   
   const tag = document.getElementById("main-brand-tag");
+  const navWalletBtn = document.getElementById("nav-wallet");
+  const newTripBtn = document.getElementById("new-trip-btn-main");
+
   if (currentUser.role === "company") {
-    tag.textContent = "Maharashtra Desha Adventure · Company Admin (Hierarchy Top)";
+    tag.textContent = "Maharashtra Desha Adventure · Company Admin";
+    if(navWalletBtn) navWalletBtn.style.display = "block";
+    if(newTripBtn) newTripBtn.style.display = "block";
   } else {
     tag.textContent = `Maharashtra Desha Adventure · Trip Leader: ${currentUser.full_name}`;
-    document.getElementById("wallet-actions-row").style.display = "none";
+    // Completely hide Global Wallet from bottom nav for leaders
+    if(navWalletBtn) navWalletBtn.style.display = "none";
+    if(newTripBtn) newTripBtn.style.display = "none";
   }
 }
 
@@ -428,13 +494,15 @@ function logout(){sb.auth.signOut();location.reload()}
 async function fetchRemoteData(){
   if(!currentUser)return;
   try{
-    const[{data:trips},{data:cats},{data:days},{data:expenses},{data:funds},{data:profiles}]=await Promise.all([
+    const[{data:trips},{data:cats},{data:days},{data:expenses},{data:funds},{data:profiles},{data:gfunds},{data:itineraries}]=await Promise.all([
       sb.from("trips").select("*").order("created_at"),
       sb.from("expense_categories").select("*").order("created_at"),
       sb.from("trip_days").select("*"),
       sb.from("expenses").select("*"),
       sb.from("trip_funds").select("*"),
-      sb.from("profiles").select("id, full_name, role")
+      sb.from("profiles").select("id, full_name, role"),
+      sb.from("global_funds").select("*"),
+      sb.from("trip_itinerary").select("*")
     ]);
     
     const profileMap = {};
@@ -444,9 +512,24 @@ async function fetchRemoteData(){
     }
 
     if(cats)DB.categories=cats.map(c=>({id:c.id,label:c.label,color:c.color}));
+    if(gfunds)DB.globalFunds=gfunds.map(g=>({id:g.id,type:g.fund_type||g.type,amount:g.amount,source:g.source||"",note:g.note||"",date:g.fund_date||g.date}));
+
     if(trips)DB.trips=trips.map(t=>{
       const tDays=(days||[]).filter(d=>d.trip_id===t.id).map(d=>({id:d.id,date:d.day_date,label:d.label||"",entries:(expenses||[]).filter(e=>e.day_id===d.id).map(e=>({id:e.id,category:e.category_id,amount:e.amount,vendor:e.vendor||"",note:e.note||"",date:e.expense_date}))})).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
       const tFunds=(funds||[]).filter(f=>f.trip_id===t.id).map(f=>({id:f.id,type:f.fund_type,amount:f.amount,client:f.client||"",note:f.note||"",date:f.fund_date}));
+      
+      let tManifest = t.manifest || [];
+      let tItinerary = (itineraries||[]).filter(i => i.trip_id === t.id).map(i => ({
+        id: i.id,
+        date: i.date,
+        label: i.label,
+        desc: i.desc,
+        hotel: i.hotel,
+        contact: i.contact,
+        map: i.map
+      }));
+      if(!tItinerary.length && t.itinerary) tItinerary = t.itinerary;
+
       return{
         id:t.id,
         name:t.name,
@@ -456,7 +539,9 @@ async function fetchRemoteData(){
         leader_id:t.leader_id,
         leader_name: profileMap[t.leader_id] || "Assigned Leader",
         days:tDays,
-        funds:tFunds
+        funds:tFunds,
+        manifest:tManifest,
+        itinerary:tItinerary
       };
     });
     saveData();isOnline=true;updateSyncBadge();renderTripList();if(currentTripId){renderTripHeader();switchTripTab(currentTab)}
@@ -464,14 +549,207 @@ async function fetchRemoteData(){
 }
 
 const genId=()=>Math.random().toString(36).substr(2,9),todayStr=()=>new Date().toISOString().split("T")[0],fmt=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2}),getTrip=()=>DB.trips.find(t=>t.id===currentTripId);
+function getGlobalStats(){let inc=0,exp=0;DB.globalFunds.forEach(f=>{if(f.type==="income")inc+=Number(f.amount);if(f.type==="expense")exp+=Number(f.amount)});return{income:inc,expense:exp,balance:inc-exp}}
 function getMonthStats(moStr){let inc=0,exp=0;DB.trips.forEach(t=>{t.days.forEach(d=>d.entries.forEach(e=>{if(e.date&&e.date.startsWith(moStr))exp+=Number(e.amount)}));t.funds.forEach(f=>{if(f.date&&f.date.startsWith(moStr))inc+=Number(f.amount)})});DB.globalFunds.forEach(f=>{if(f.date&&f.date.startsWith(moStr)){if(f.type==="income")inc+=Number(f.amount);if(f.type==="expense")exp+=Number(f.amount)}});return{income:inc,expense:exp,balance:inc-exp}}
+
 function openModal(id){document.getElementById(id).classList.remove("hidden")}function closeModal(id){document.getElementById(id).classList.add("hidden")}
-function switchMainScreen(screenId,navId){document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById(screenId).classList.add("active");if(navId){document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));document.getElementById(navId).classList.add("active")}window.scrollTo(0,0);if(screenId==="screen-trips")renderTripList();if(screenId==="screen-wallet")renderWallet();if(screenId==="screen-reports")renderReports();if(screenId==="screen-settings")renderSettings()}
-function renderWallet(){const el=document.getElementById("wallet-list");let totalIn=0,totalOut=0;const funds=[...DB.globalFunds].sort((a,b)=>b.date.localeCompare(a.date));if(!funds.length)el.innerHTML='<div class="empty">No global transactions yet.<br/>Log non-trip money here.</div>';else{el.innerHTML=funds.map(f=>{if(f.type==="income")totalIn+=Number(f.amount);if(f.type==="expense")totalOut+=Number(f.amount);const isIncome=f.type==="income";return`<div class="fund-row"><div><div class="fund-name">${isIncome?"⬇️ Income":"⬆️ Expense"}</div>${f.source?`<div class="fund-client">${f.source}</div>`:""}${f.note?`<div class="fund-note">${f.note}</div>`:""}<div class="fund-date">${f.date||""}</div></div><div class="fund-right"><span class="fund-amt ${isIncome?"":"out"}">${isIncome?"+":"-"}${fmt(f.amount)}</span>${currentUser&&currentUser.role==="company"?`<button class="icon-btn" style="color:#C9A84C" onclick="openEditGlobalTx('${f.id}')">✏️</button><button class="icon-btn-x" onclick="deleteGlobalTx('${f.id}')">×</button>`:""}</div></div>`}).join("")}const balance=totalIn-totalOut;document.getElementById("wallet-balance").textContent=fmt(balance);document.getElementById("wallet-balance").style.color=balance>=0?"#F7DC6F":"#EC7063";document.getElementById("wallet-in").textContent=fmt(totalIn);document.getElementById("wallet-out").textContent=fmt(totalOut)}
-function openGlobalTx(type){if(currentUser&&currentUser.role!=="company")return;document.getElementById("gtx-id").value="";document.getElementById("gtx-type").value=type;document.getElementById("gtx-title").textContent=type==="income"?"Add General Income":"Add General Expense";document.getElementById("gtx-source-lbl").textContent=type==="income"?"Source (From who/where)":"Payee (To who/where)";document.getElementById("gtx-amt").value="";document.getElementById("gtx-source").value="";document.getElementById("gtx-note").value="";document.getElementById("gtx-date").value=todayStr();const btn=document.getElementById("gtx-save-btn");btn.className=type==="income"?"btn btn-success":"btn btn-danger";openModal("modal-global-tx")}
-function openEditGlobalTx(id){const f=DB.globalFunds.find(x=>x.id===id);if(!f)return;document.getElementById("gtx-id").value=f.id;document.getElementById("gtx-type").value=f.type;document.getElementById("gtx-title").textContent="Edit Transaction";document.getElementById("gtx-source-lbl").textContent=f.type==="income"?"Source":"Payee";document.getElementById("gtx-amt").value=f.amount;document.getElementById("gtx-source").value=f.source||"";document.getElementById("gtx-note").value=f.note||"";document.getElementById("gtx-date").value=f.date||"";document.getElementById("gtx-save-btn").className="btn btn-primary";openModal("modal-global-tx")}
-function saveGlobalTx(){const id=document.getElementById("gtx-id").value,amt=document.getElementById("gtx-amt").value;if(!amt)return;const data={type:document.getElementById("gtx-type").value,amount:amt,source:document.getElementById("gtx-source").value.trim(),note:document.getElementById("gtx-note").value.trim(),date:document.getElementById("gtx-date").value};if(id){const idx=DB.globalFunds.findIndex(x=>x.id===id);DB.globalFunds[idx]={...DB.globalFunds[idx],...data}}else DB.globalFunds.push({id:genId(),...data});saveData();closeModal("modal-global-tx");renderWallet()}
-function deleteGlobalTx(id){if(!confirm("Delete this transaction?"))return;DB.globalFunds=DB.globalFunds.filter(x=>x.id!==id);saveData();renderWallet()}
+function switchMainScreen(screenId,navId){
+  if(screenId === 'screen-wallet' && currentUser && currentUser.role !== 'company') return; // Guard for leaders
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById(screenId).classList.add("active");if(navId){document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));document.getElementById(navId).classList.add("active")}window.scrollTo(0,0);if(screenId==="screen-trips")renderTripList();if(screenId==="screen-wallet")renderWallet();if(screenId==="screen-reports")renderReports();if(screenId==="screen-settings")renderSettings()}
+
+function renderWallet(){
+  if(currentUser && currentUser.role !== 'company') return;
+  const el=document.getElementById("wallet-list");
+  let totalIn=0, totalOut=0;
+  const funds=[...DB.globalFunds].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  
+  if(!funds.length){
+    el.innerHTML='<div class="empty">No global wallet funds added yet.<br/>Use the buttons above to add or remove global company funds.</div>';
+  } else {
+    el.innerHTML=funds.map(f=>{
+      if(f.type==="income") totalIn += Number(f.amount);
+      if(f.type==="expense") totalOut += Number(f.amount);
+      const isIncome = f.type==="income";
+      return `
+        <div class="fund-row">
+          <div>
+            <div class="fund-name">${isIncome?"➕ Added Global Fund":"➖ Removed Global Fund"}</div>
+            ${f.source?`<div class="fund-client">${f.source}</div>`:""}
+            ${f.note?`<div class="fund-note">${f.note}</div>`:""}
+            <div class="fund-date">${f.date||""}</div>
+          </div>
+          <div class="fund-right">
+            <span class="fund-amt ${isIncome?"":"out"}">${isIncome?"+":"-"}${fmt(f.amount)}</span>
+            <button class="icon-btn" style="color:#C9A84C" onclick="openEditGlobalTx('${f.id}')">✏️</button><button class="icon-btn-x" onclick="deleteGlobalTx('${f.id}')">×</button>
+          </div>
+        </div>`;
+    }).join("");
+  }
+  const balance = totalIn - totalOut;
+  document.getElementById("wallet-balance").textContent = fmt(balance);
+  document.getElementById("wallet-balance").style.color = balance>=0?"#F7DC6F":"#EC7063";
+  document.getElementById("wallet-in").textContent = fmt(totalIn);
+  document.getElementById("wallet-out").textContent = fmt(totalOut);
+}
+
+function openGlobalTx(type){
+  if(currentUser && currentUser.role!=="company") return;
+  document.getElementById("gtx-id").value="";
+  document.getElementById("gtx-type").value=type;
+  document.getElementById("gtx-title").textContent=type==="income"?"Add Global Fund":"Remove Global Fund";
+  document.getElementById("gtx-source-lbl").textContent=type==="income"?"Source / Bank (e.g. Office Reserve, Owner Capital)":"Reason / Payee (e.g. Withdrawal, Office Expense)";
+  document.getElementById("gtx-amt").value="";
+  document.getElementById("gtx-source").value="";
+  document.getElementById("gtx-note").value="";
+  document.getElementById("gtx-date").value=todayStr();
+  const btn=document.getElementById("gtx-save-btn");
+  btn.className=type==="income"?"btn btn-success":"btn btn-danger";
+  openModal("modal-global-tx");
+}
+
+function openEditGlobalTx(id){
+  const f=DB.globalFunds.find(x=>x.id===id);
+  if(!f) return;
+  document.getElementById("gtx-id").value=f.id;
+  document.getElementById("gtx-type").value=f.type;
+  document.getElementById("gtx-title").textContent="Edit Global Transaction";
+  document.getElementById("gtx-source-lbl").textContent=f.type==="income"?"Source":"Reason / Payee";
+  document.getElementById("gtx-amt").value=f.amount;
+  document.getElementById("gtx-source").value=f.source||"";
+  document.getElementById("gtx-note").value=f.note||"";
+  document.getElementById("gtx-date").value=f.date||"";
+  document.getElementById("gtx-save-btn").className="btn btn-primary";
+  openModal("modal-global-tx");
+}
+
+async function saveGlobalTx(){
+  const id=document.getElementById("gtx-id").value, amt=document.getElementById("gtx-amt").value;
+  if(!amt) return;
+  const type = document.getElementById("gtx-type").value;
+  const source = document.getElementById("gtx-source").value.trim();
+  const note = document.getElementById("gtx-note").value.trim();
+  const date = document.getElementById("gtx-date").value;
+  const txId = id || genId();
+
+  if(isOnline){
+    const dbPayload = {
+      id: txId,
+      company_id: currentUser ? currentUser.company_id : null,
+      fund_type: type,
+      amount: amt,
+      source: source,
+      note: note,
+      fund_date: date
+    };
+    const { error } = await sb.from("global_funds").upsert(dbPayload);
+    if(error){
+      alert("Could not save global fund online: " + error.message);
+      return;
+    }
+  }
+
+  const data = { id: txId, type, amount: amt, source, note, date };
+  if(id){
+    const idx=DB.globalFunds.findIndex(x=>x.id===id);
+    if(idx>=0) DB.globalFunds[idx]=data;
+  } else {
+    DB.globalFunds.push(data);
+  }
+  saveData();
+  closeModal("modal-global-tx");
+  renderWallet();
+}
+
+async function deleteGlobalTx(id){
+  if(!confirm("Delete this global fund transaction?")) return;
+  if(isOnline){
+    const { error } = await sb.from("global_funds").delete().eq("id", id);
+    if(error){
+      alert("Could not delete online: " + error.message);
+      return;
+    }
+  }
+  DB.globalFunds=DB.globalFunds.filter(x=>x.id!==id);
+  saveData();
+  renderWallet();
+}
+
+function shareGlobalWalletWhatsApp(){
+  const stats=getGlobalStats();
+  let msg=`🏦 *MAHARASHTRA DESHA ADVENTURE* 🏦\n`;
+  msg+=`📋 *GLOBAL WALLET STATEMENT*\n`;
+  msg+=`━━━━━━━━━━━━━━━━━━━━━━\n`;
+  msg+=`• Total Added Funds: *₹${Number(stats.income).toLocaleString("en-IN")}*\n`;
+  msg+=`• Total Removed Funds: *₹${Number(stats.expense).toLocaleString("en-IN")}*\n`;
+  msg+=`• *Available Balance: ₹${Number(stats.balance).toLocaleString("en-IN")}* ${stats.balance>=0?"✅":"❌"}\n\n`;
+  
+  if(DB.globalFunds.length > 0) {
+    msg+=`📜 *RECENT TRANSACTIONS:*\n`;
+    DB.globalFunds.slice(-10).reverse().forEach(f => {
+      const sign = f.type==="income"?"+":"-";
+      msg+=`• [${f.date||'N/A'}] ${f.source||f.type}: ${sign}₹${Number(f.amount).toLocaleString("en-IN")} (${f.note||'general'})\n`;
+    });
+  }
+  msg+=`\n━━━━━━━━━━━━━━━━━━━━━━\n_Reported by Maharashtra Desha Adventure_`;
+  window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank");
+}
+
+function downloadGlobalWalletPDF(){
+  const stats=getGlobalStats();
+  const container=document.getElementById("print-container");
+  let html=`
+    <div style="font-family:'Segoe UI',Helvetica,Arial,sans-serif; color:#222; max-width:800px; margin:0 auto; padding:10px;">
+      <div style="border-bottom:3px solid #C9A84C; padding-bottom:15px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end;">
+        <div>
+          <div style="font-size:11px; font-weight:800; letter-spacing:3px; color:#C9A84C; text-transform:uppercase;">Maharashtra Desha Adventure</div>
+          <h1 style="margin:5px 0 0 0; font-size:22px; color:#111; font-weight:800;">Global Company Wallet Statement</h1>
+        </div>
+        <div style="text-align:right; font-size:11px; color:#666;">
+          <strong>Date:</strong> ${todayStr()}
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; margin-bottom:20px;">
+        <div style="flex:1; background:#e8f8f5; border:1px solid #a3e4d7; border-radius:6px; padding:12px; text-align:center;">
+          <div style="font-size:11px; color:#16a085; font-weight:700; text-transform:uppercase;">Total Added Funds</div>
+          <div style="font-size:18px; font-weight:800; color:#117a65; margin-top:4px;">${fmt(stats.income)}</div>
+        </div>
+        <div style="flex:1; background:#fdedec; border:1px solid #f5b7b1; border-radius:6px; padding:12px; text-align:center;">
+          <div style="font-size:11px; color:#c0392b; font-weight:700; text-transform:uppercase;">Total Removed Funds</div>
+          <div style="font-size:18px; font-weight:800; color:#922b21; margin-top:4px;">${fmt(stats.expense)}</div>
+        </div>
+        <div style="flex:1; background:#fef9e7; border:1px solid #f9e79f; border-radius:6px; padding:12px; text-align:center;">
+          <div style="font-size:11px; color:#b7950b; font-weight:700; text-transform:uppercase;">Available Balance</div>
+          <div style="font-size:18px; font-weight:800; color:${stats.balance>=0?'#7d6608':'#922b21'}; margin-top:4px;">${fmt(stats.balance)}</div>
+        </div>
+      </div>
+      <h3 style="font-size:14px; color:#111; border-bottom:1px solid #ccc; padding-bottom:5px; margin-top:20px; margin-bottom:10px; text-transform:uppercase;">Transaction Ledger</h3>
+      <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:12px;">
+        <thead>
+          <tr style="background:#2c3e50; color:#fff; text-align:left;">
+            <th style="padding:8px; border:1px solid #2c3e50;">Date</th>
+            <th style="padding:8px; border:1px solid #2c3e50;">Action</th>
+            <th style="padding:8px; border:1px solid #2c3e50;">Source / Reason</th>
+            <th style="padding:8px; border:1px solid #2c3e50;">Note</th>
+            <th style="padding:8px; border:1px solid #2c3e50; text-align:right;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>`;
+  DB.globalFunds.forEach(f=>{
+    const isInc = f.type==="income";
+    html+=`<tr>
+      <td style="padding:7px 8px; border:1px solid #ddd;">${f.date||'-'}</td>
+      <td style="padding:7px 8px; border:1px solid #ddd; font-weight:bold; color:${isInc?'#16a085':'#c0392b'}">${isInc?'Added Fund':'Removed Fund'}</td>
+      <td style="padding:7px 8px; border:1px solid #ddd;">${f.source||'-'}</td>
+      <td style="padding:7px 8px; border:1px solid #ddd;">${f.note||'-'}</td>
+      <td style="padding:7px 8px; border:1px solid #ddd; text-align:right; font-weight:600; color:${isInc?'#16a085':'#c0392b'};">${isInc?'+':'-'}${fmt(f.amount)}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div>`;
+  container.innerHTML=html;
+  window.print();
+  setTimeout(()=>{ container.innerHTML=""; }, 1000);
+}
+
 function renderSettings(){const list=document.getElementById("settings-categories-list");list.innerHTML=DB.categories.map(c=>`<div class="cat-item"><div class="cat-info"><div class="cat-color-box" style="background:${c.color}"></div><span style="color:#EEE;font-size:14px">${c.label}</span></div><div>${currentUser&&currentUser.role==="company"?`<button class="icon-btn" style="color:#C9A84C" onclick="openEditCategory('${c.id}')">✏️</button><button class="icon-btn-x" onclick="deleteCategory('${c.id}')">×</button>`:""}</div></div>`).join("");const info=document.getElementById("settings-account-info");if(info&&currentUser)info.textContent=`${currentUser.full_name} · Role: ${currentUser.role}`}
 function openEditCategory(id){const c=DB.categories.find(x=>x.id===id);document.getElementById("mc-title").textContent="Edit Category";document.getElementById("mc-id").value=c.id;document.getElementById("mc-label").value=c.label;document.getElementById("mc-color").value=c.color;openModal("modal-add-cat")}
 async function saveCategory(){const id=document.getElementById("mc-id").value,label=document.getElementById("mc-label").value.trim(),color=document.getElementById("mc-color").value;if(!label)return;if(id){const c=DB.categories.find(x=>x.id===id);c.label=label;c.color=color;if(isOnline)await sb.from("expense_categories").update({label,color}).eq("id",id)}else{if(isOnline&&currentUser){const{data,error}=await sb.from("expense_categories").insert({company_id:currentUser.company_id,label,color}).select().single();if(!error&&data)DB.categories.push({id:data.id,label,color});else DB.categories.push({id:"cat_"+genId(),label,color})}else DB.categories.push({id:"cat_"+genId(),label,color})}document.getElementById("mc-id").value="";document.getElementById("mc-label").value="";saveData();closeModal("modal-add-cat");renderSettings()}
@@ -479,19 +757,47 @@ async function deleteCategory(id){if(!confirm("Delete this category?"))return;DB
 function exportData(){const dataStr="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(DB)),el=document.createElement("a");el.setAttribute("href",dataStr);el.setAttribute("download",`mda_expense_backup_${todayStr()}.json`);document.body.appendChild(el);el.click();el.remove()}
 function importData(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const importedData=JSON.parse(e.target.result);if(importedData.trips&&importedData.categories){if(!importedData.globalFunds)importedData.globalFunds=[];DB=importedData;saveData();alert("Backup restored successfully!");renderSettings()}else alert("Invalid backup file.")}catch(err){alert("Error reading file.")}};reader.readAsText(file)}
 function clearAllData(){if(confirm("🚨 WARNING: This will delete ALL trips, wallet records, and settings permanently. Are you absolutely sure?")){DB={trips:[],categories:DEFAULT_CATEGORIES,globalFunds:[],leaders:[]};saveData();alert("Data wiped clean.");switchMainScreen("screen-trips","nav-trips")}}
-function renderReports(){const content=document.getElementById("report-content"),months={};DB.trips.forEach(t=>{t.days.forEach(d=>d.entries.forEach(e=>{if(!e.date)return;const mo=e.date.substring(0,7);if(!months[mo])months[mo]={income:0,expense:0};months[mo].expense+=Number(e.amount)}));t.funds.forEach(f=>{if(!f.date)return;const mo=f.date.substring(0,7);if(!months[mo])months[mo]={income:0,expense:0};months[mo].income+=Number(f.amount)})});DB.globalFunds.forEach(f=>{if(!f.date)return;const mo=f.date.substring(0,7);if(!months[mo])months[mo]={income:0,expense:0};if(f.type==="income")months[mo].income+=Number(f.amount);if(f.type==="expense")months[mo].expense+=Number(f.amount)});const sortedMonths=Object.keys(months).sort((a,b)=>b.localeCompare(a));if(!sortedMonths.length){content.innerHTML='<div class="empty">No financial data to report yet.</div>';return}let html="";sortedMonths.forEach(mo=>{const data=months[mo],profit=data.income-data.expense,dateObj=new Date(mo+"-01"),moName=dateObj.toLocaleString("default",{month:"long",year:"numeric"});html+=`<div class="summary-card"><div class="report-month">📅 ${moName}</div><div class="summary-row"><span style="color:#CCC">Total Funds / Income</span><span style="color:#27AE60;font-weight:700">${fmt(data.income)}</span></div><div class="summary-row"><span style="color:#CCC">Total Expenses</span><span style="color:#EC7063;font-weight:700">${fmt(data.expense)}</span></div><div class="summary-row" style="border-top:1px solid #333;margin-top:8px;padding-top:12px"><span style="color:#E8D5A3;font-weight:bold">Net Balance</span><span style="color:${profit>=0?"#F7DC6F":"#EC7063"};font-weight:700;font-size:16px">${fmt(profit)}</span></div><button class="btn btn-whatsapp" style="margin-top:16px" onclick="shareMonthWhatsApp('${mo}')">📤 Share ${moName} Report</button></div>`});content.innerHTML=html}
-function shareMonthWhatsApp(moStr){const stats=getMonthStats(moStr),moName=new Date(moStr+"-01").toLocaleString("default",{month:"long",year:"numeric"});let msg=`*MONTHLY REPORT: ${moName.toUpperCase()}*\\n━━━━━━━━━━━━━━━\\n\\n`;let tripList=DB.trips.filter(t=>t.date&&t.date.startsWith(moStr));if(tripList.length){msg+="*TRIPS THIS MONTH:*\\n";tripList.forEach(t=>msg+=`• ${t.name} (${t.date})\\n`);msg+="\\n"}msg+=`*OVERALL FINANCIALS:*\\nTotal Income: ₹${stats.income.toLocaleString("en-IN")}\\nTotal Expense: ₹${stats.expense.toLocaleString("en-IN")}\\n*Net Balance: ₹${stats.balance.toLocaleString("en-IN")}* ${stats.balance>=0?"✅":"❌"}\\n\\n_Includes all trips and global wallet transactions._\\n_Reported by Maharashtra Desha Adventure_`;window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank")}
+
+function renderReports(){
+  const content=document.getElementById("report-content"), months={};
+  DB.trips.forEach(t=>{
+    t.days.forEach(d=>d.entries.forEach(e=>{if(!e.date)return;const mo=e.date.substring(0,7);if(!months[mo])months[mo]={income:0,expense:0};months[mo].expense+=Number(e.amount)}));
+    t.funds.forEach(f=>{if(!f.date)return;const mo=f.date.substring(0,7);if(!months[mo])months[mo]={income:0,expense:0};months[mo].income+=Number(f.amount)})
+  });
+  DB.globalFunds.forEach(f=>{
+    if(!f.date)return;const mo=f.date.substring(0,7);if(!months[mo])months[mo]={income:0,expense:0};
+    if(f.type==="income")months[mo].income+=Number(f.amount);
+    if(f.type==="expense")months[mo].expense+=Number(f.amount)
+  });
+  const sortedMonths=Object.keys(months).sort((a,b)=>b.localeCompare(a));
+  if(!sortedMonths.length){content.innerHTML='<div class="empty">No financial data to report yet.</div>';return}
+  let html="";
+  sortedMonths.forEach(mo=>{
+    const data=months[mo],profit=data.income-data.expense,dateObj=new Date(mo+"-01"),moName=dateObj.toLocaleString("default",{month:"long",year:"numeric"});
+    html+=`<div class="summary-card"><div class="report-month">📅 ${moName}</div><div class="summary-row"><span style="color:#CCC">Total Funds / Income</span><span style="color:#27AE60;font-weight:700">${fmt(data.income)}</span></div><div class="summary-row"><span style="color:#CCC">Total Expenses</span><span style="color:#EC7063;font-weight:700">${fmt(data.expense)}</span></div><div class="summary-row" style="border-top:1px solid #333;margin-top:8px;padding-top:12px"><span style="color:#E8D5A3;font-weight:bold">Net Balance</span><span style="color:${profit>=0?"#F7DC6F":"#EC7063"};font-weight:700;font-size:16px">${fmt(profit)}</span></div><button class="btn btn-whatsapp" style="margin-top:16px" onclick="shareMonthWhatsApp('${mo}')">📤 Share ${moName} Report</button></div>`
+  });
+  content.innerHTML=html;
+}
+
+function shareMonthWhatsApp(moStr){
+  const stats=getMonthStats(moStr),moName=new Date(moStr+"-01").toLocaleString("default",{month:"long",year:"numeric"});
+  let msg=`*MONTHLY REPORT: ${moName.toUpperCase()}*\\n━━━━━━━━━━━━━━━\\n\\n`;
+  let tripList=DB.trips.filter(t=>t.date&&t.date.startsWith(moStr));
+  if(tripList.length){msg+="*TRIPS THIS MONTH:*\\n";tripList.forEach(t=>msg+=`• ${t.name} (${t.date})\\n`);msg+="\\n"}
+  msg+=`*OVERALL FINANCIALS:*\\nTotal Income: ₹${stats.income.toLocaleString("en-IN")}\\nTotal Expense: ₹${stats.expense.toLocaleString("en-IN")}\\n*Net Balance: ₹${stats.balance.toLocaleString("en-IN")}* ${stats.balance>=0?"✅":"❌"}\\n\\n_Includes all trips and global wallet transactions._\\n_Reported by Maharashtra Desha Adventure_`;
+  window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank");
+}
 
 function renderTripList(){
   const el=document.getElementById("trip-list");
   if(!DB.trips.length){
-    el.innerHTML='<div class="empty">No trips yet.</div>';
+    el.innerHTML='<div class="empty">No trips assigned yet.</div>';
     return;
   }
   
   if(currentUser && currentUser.role === "company"){
     let relevantTrips = DB.trips;
-    let html = `<div class="summary-card" style="border-color:#C9A84C;margin-bottom:16px;"><div class="summary-title" style="color:#C9A84C;">🏢 Maharashtra Desha Adventure · Company Admin (Hierarchy Top)</div><div style="font-size:13px;color:#888;">Viewing all operations across all leaders. Click any trip below to manage or reassign.</div></div>`;
+    let html = `<div class="summary-card" style="border-color:#C9A84C;margin-bottom:16px;"><div class="summary-title" style="color:#C9A84C;">🏢 Maharashtra Desha Adventure · Company Admin</div><div style="font-size:13px;color:#888;">Viewing all trips in two-column grid. Click <strong>Master Itinerary</strong> or <strong>Trip Expenses</strong> on any card box.</div></div>`;
     
     const leaderMap = {};
     relevantTrips.forEach(trip => {
@@ -502,49 +808,45 @@ function renderTripList(){
 
     Object.keys(leaderMap).forEach(lId => {
       const group = leaderMap[lId];
-      html += `<div class="leader-section-title">👤 Leader: ${group.name}</div>`;
+      html += `<div class="leader-section-title">👤 Leader: ${group.name}</div><div class="trip-grid">`;
       group.trips.forEach(trip => {
-        const spent = trip.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0);
-        const funds = trip.funds.reduce((s,f)=>s+Number(f.amount),0);
-        const bal = funds - spent;
         html += `
-          <div class="card trip-card">
-            <div class="trip-card-content" onclick="openTrip('${trip.id}')">
-              <div class="trip-name">${trip.name}</div>
-              ${trip.destination?`<div class="trip-dest">📍 ${trip.destination}</div>`:""}
-              <div class="trip-date">🗓️ ${trip.date||""} · 👥 ${trip.customers||"?"} pax</div>
+          <div class="trip-box-card">
+            <div onclick="openTripDirect('${trip.id}', 'itinerary')" style="cursor:pointer;">
+              <div class="trip-box-name">${trip.name}</div>
+              ${trip.destination?`<div class="trip-box-dest">📍 ${trip.destination}</div>`:""}
             </div>
-            <div class="trip-card-right" onclick="openTrip('${trip.id}')">
-              <div class="trip-amt">${fmt(spent)}</div>
-              <div class="trip-bal" style="color:${bal>=0?"#27AE60":"#EC7063"}">Bal: ${fmt(bal)}</div>
+            <div class="trip-box-actions">
+              <button class="box-action-btn btn-itinerary-box" onclick="openTripDirect('${trip.id}', 'itinerary')">🗺️ Itinerary</button>
+              <button class="box-action-btn btn-expense-box" onclick="openTripDirect('${trip.id}', 'days')">💸 Expenses</button>
             </div>
           </div>`;
       });
+      html += `</div>`;
     });
     el.innerHTML = html;
   } else {
     let myTrips = DB.trips.filter(t => t.leader_id === currentUser.id);
     if(!myTrips.length){
-      el.innerHTML='<div class="empty">No trips assigned to you yet. You can also add a new trip below.</div>';
+      el.innerHTML='<div class="empty">No trips assigned to you yet.</div>';
       return;
     }
-    el.innerHTML = myTrips.map(trip => {
-      const spent=trip.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0);
-      const funds=trip.funds.reduce((s,f)=>s+Number(f.amount),0);
-      const bal=funds-spent;
-      return `
-        <div class="card trip-card">
-          <div class="trip-card-content" onclick="openTrip('${trip.id}')">
-            <div class="trip-name">${trip.name}</div>
-            ${trip.destination?`<div class="trip-dest">📍 ${trip.destination}</div>`:""}
-            <div class="trip-date">🗓️ ${trip.date||""} · 👥 ${trip.customers||"?"} pax</div>
+    let html = `<div class="trip-grid">`;
+    myTrips.forEach(trip => {
+      html += `
+        <div class="trip-box-card">
+          <div onclick="openTripDirect('${trip.id}', 'itinerary')" style="cursor:pointer;">
+            <div class="trip-box-name">${trip.name}</div>
+            ${trip.destination?`<div class="trip-box-dest">📍 ${trip.destination}</div>`:""}
           </div>
-          <div class="trip-card-right" onclick="openTrip('${trip.id}')">
-            <div class="trip-amt">${fmt(spent)}</div>
-            <div class="trip-bal" style="color:${bal>=0?"#27AE60":"#EC7063"}">Bal: ${fmt(bal)}</div>
+          <div class="trip-box-actions">
+            <button class="box-action-btn btn-itinerary-box" onclick="openTripDirect('${trip.id}', 'itinerary')">🗺️ Itinerary</button>
+            <button class="box-action-btn btn-expense-box" onclick="openTripDirect('${trip.id}', 'days')">💸 Expenses</button>
           </div>
         </div>`;
-    }).join("");
+    });
+    html += `</div>`;
+    el.innerHTML = html;
   }
 }
 
@@ -606,7 +908,9 @@ async function createTrip(){
       leader_id:leaderId,
       leader_name: assignedLeader ? assignedLeader.full_name : "Leader",
       days:[],
-      funds:[]
+      funds:[],
+      manifest:[],
+      itinerary:[]
     });
   } else {
     const assignedLeader = DB.leaders.find(l => l.id === leaderId);
@@ -619,7 +923,9 @@ async function createTrip(){
       leader_id:leaderId,
       leader_name: assignedLeader ? assignedLeader.full_name : "Leader",
       days:[],
-      funds:[]
+      funds:[],
+      manifest:[],
+      itinerary:[]
     });
   }
   saveData();
@@ -627,14 +933,21 @@ async function createTrip(){
   renderTripList();
 }
 
-function openTrip(id){currentTripId=id;switchMainScreen("screen-trip",null);renderTripHeader();switchTripTab("days")}
+function openTripDirect(id, tabName){
+  currentTripId = id;
+  switchMainScreen("screen-trip", null);
+  renderTripHeader();
+  switchTripTab(tabName);
+}
+
+function openTrip(id){ openTripDirect(id, 'itinerary'); }
 function goBackToTrips(){currentTripId=null;switchMainScreen("screen-trips","nav-trips")}
 function renderTripHeader(){
   const t=getTrip();
   if(!t)return;
   const spent=t.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0),funds=t.funds.reduce((s,f)=>s+Number(f.amount),0);
   document.getElementById("th-name").textContent=t.name;
-  document.getElementById("th-sub").textContent=(t.destination?"📍 "+t.destination+" · ":"")+"👥 "+(t.customers||"?")+" pax · 👤 "+(t.leader_name||"Leader");
+  document.getElementById("th-sub").textContent=(t.destination?"📍 "+t.destination+" · ":"")+"👥 "+(t.customers||(t.manifest?t.manifest.length:"?"))+" pax · 👤 "+(t.leader_name||"Leader");
   document.getElementById("th-spent").textContent=fmt(spent);
   document.getElementById("th-funds").textContent=fmt(funds);
   document.getElementById("th-bal").textContent=fmt(funds-spent);
@@ -692,12 +1005,13 @@ async function saveEditTrip(){
 async function deleteCurrentTrip(){
   const t = getTrip();
   if(!t) return;
-  if(!confirm(`Are you sure you want to delete "${t.name}"? This will delete all associated days, expenses, and funds.`)) return;
+  if(!confirm(`Are you sure you want to delete "${t.name}"? This will delete all associated master itinerary, expenses, and funds.`)) return;
 
   if(isOnline){
     await sb.from("expenses").delete().eq("trip_id", t.id);
     await sb.from("trip_days").delete().eq("trip_id", t.id);
     await sb.from("trip_funds").delete().eq("trip_id", t.id);
+    await sb.from("trip_itinerary").delete().eq("trip_id", t.id);
     const { error } = await sb.from("trips").delete().eq("id", t.id);
     if(error){
       alert("Could not delete trip online: " + error.message);
@@ -710,13 +1024,157 @@ async function deleteCurrentTrip(){
   goBackToTrips();
 }
 
-function switchTripTab(tab){currentTab=tab;document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));document.getElementById("tab-"+tab).classList.add("active");if(tab==="days")renderDaysTab();else if(tab==="funds")renderFundsTab();else renderSummaryTab()}
+function switchTripTab(tab){
+  currentTab=tab;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.getElementById("tab-"+tab).classList.add("active");
+  if(tab==="itinerary")renderItineraryTab();
+  else if(tab==="days")renderDaysTab();
+  else if(tab==="funds")renderFundsTab();
+  else if(tab==="manifest")renderManifestTab();
+  else renderSummaryTab();
+}
+
+/* MASTER ITINERARY & STAY TAB FUNCTIONS */
+function renderItineraryTab(){
+  const t = getTrip();
+  if(!t) return;
+  if(!t.itinerary) t.itinerary = [];
+  
+  let html = ``;
+  if(currentUser && currentUser.role === "company"){
+    html += `<button class="btn btn-primary" style="margin-bottom:16px" onclick="openAddItineraryModal()">+ Add Master Itinerary & Stay Plan</button>`;
+  } else {
+    html += `<div style="font-size:12px; color:#888; margin-bottom:12px;">ℹ️ Master itinerary and stay details set by company management.</div>`;
+  }
+
+  if(!t.itinerary.length){
+    html += `<div class="empty">No master itinerary or hotel stays added yet for this trip.</div>`;
+  } else {
+    t.itinerary.sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+    t.itinerary.forEach((item, idx) => {
+      html += `
+        <div class="itinerary-box">
+          <div class="itinerary-title">
+            <span>📅 ${item.date || 'Date N/A'} — ${item.label || 'Itinerary'}</span>
+            ${currentUser && currentUser.role === "company" ? `<div><button class="icon-btn" style="color:#C9A84C" onclick="openEditItineraryModal('${item.id}')">✏️</button><button class="icon-btn-x" onclick="deleteItineraryItem('${item.id}')">×</button></div>`:""}
+          </div>
+          ${item.desc?`<div class="itinerary-desc">${item.desc}</div>`:""}
+          <div class="hotel-contact-box">
+            <div>
+              <strong style="color:#E8D5A3; font-size:13px;">🏨 ${item.hotel || 'No Hotel Specified'}</strong><br/>
+              📞 Contact: ${item.contact || 'N/A'}
+            </div>
+            <div>
+              ${item.map ? `<a class="map-link-btn" href="${item.map}" target="_blank">📍 Open Map</a>` : ''}
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+  document.getElementById("tab-content").innerHTML = html;
+}
+
+function openAddItineraryModal(){
+  document.getElementById("it-id").value = "";
+  document.getElementById("it-date").value = todayStr();
+  document.getElementById("it-label").value = "";
+  document.getElementById("it-desc").value = "";
+  document.getElementById("it-hotel").value = "";
+  document.getElementById("it-contact").value = "";
+  document.getElementById("it-map").value = "";
+  openModal("modal-add-itinerary");
+}
+
+function openEditItineraryModal(id){
+  const t = getTrip();
+  if(!t) return;
+  const item = t.itinerary.find(x => x.id === id);
+  if(!item) return;
+  document.getElementById("it-id").value = item.id;
+  document.getElementById("it-date").value = item.date || "";
+  document.getElementById("it-label").value = item.label || "";
+  document.getElementById("it-desc").value = item.desc || "";
+  document.getElementById("it-hotel").value = item.hotel || "";
+  document.getElementById("it-contact").value = item.contact || "";
+  document.getElementById("it-map").value = item.map || "";
+  openModal("modal-add-itinerary");
+}
+
+async function saveItineraryItem(){
+  const t = getTrip();
+  if(!t) return;
+  const id = document.getElementById("it-id").value;
+  const date = document.getElementById("it-date").value;
+  if(!date){ alert("Date is required"); return; }
+
+  const itemObj = {
+    id: id || genId(),
+    trip_id: t.id,
+    date,
+    label: document.getElementById("it-label").value.trim(),
+    desc: document.getElementById("it-desc").value.trim(),
+    hotel: document.getElementById("it-hotel").value.trim(),
+    contact: document.getElementById("it-contact").value.trim(),
+    map: document.getElementById("it-map").value.trim()
+  };
+
+  if(!t.itinerary) t.itinerary = [];
+
+  if(isOnline){
+    const dbPayload = {
+      id: itemObj.id,
+      trip_id: t.id,
+      date: itemObj.date,
+      label: itemObj.label,
+      "desc": itemObj.desc,
+      hotel: itemObj.hotel,
+      contact: itemObj.contact,
+      map: itemObj.map
+    };
+    const { error } = await sb.from("trip_itinerary").upsert(dbPayload);
+    if(error){
+      alert("Could not save itinerary online: " + error.message);
+      return;
+    }
+  }
+
+  if(id){
+    const idx = t.itinerary.findIndex(x => x.id === id);
+    if(idx >= 0) t.itinerary[idx] = itemObj;
+  } else {
+    t.itinerary.push(itemObj);
+  }
+  saveData();
+  closeModal("modal-add-itinerary");
+  renderItineraryTab();
+}
+
+async function deleteItineraryItem(id){
+  if(!confirm("Delete this master itinerary/stay entry?")) return;
+  const t = getTrip();
+  if(!t) return;
+
+  if(isOnline){
+    const { error } = await sb.from("trip_itinerary").delete().eq("id", id);
+    if(error){
+      alert("Could not delete itinerary online: " + error.message);
+      return;
+    }
+  }
+
+  t.itinerary = t.itinerary.filter(x => x.id !== id);
+  saveData();
+  renderItineraryTab();
+}
+
 function populateCatSelect(id,selectedId){document.getElementById(id).innerHTML=DB.categories.map(c=>`<option value="${c.id}" ${c.id===selectedId?"selected":""}>${c.label}</option>`).join("")}
+
 function renderDaysTab(){
   const t=getTrip();
   if(!t)return;
-  let html=`<button class="btn btn-primary" style="margin-bottom:16px" onclick="openAddDay()">+ Add Day</button>`;
-  if(!t.days.length) html+='<div class="empty">No days added yet.</div>';
+  let html=`<button class="btn btn-primary" style="margin-bottom:16px" onclick="openAddDay()">+ Add Expense Day</button>`;
+  if(!t.days.length) html+='<div class="empty">No expense days logged yet.</div>';
   else t.days.forEach(day=>{
     const dayTotal=day.entries.reduce((s,e)=>s+Number(e.amount),0);
     html+=`<div class="card" style="margin-bottom:14px">
@@ -776,12 +1234,87 @@ async function addEntry(){const amt=document.getElementById("ae-amt").value;if(!
 function openEditEntry(dayId,entryId){const e=getTrip().days.find(d=>d.id===dayId).entries.find(e=>e.id===entryId);_editEntryDayId=dayId;_editEntryId=entryId;populateCatSelect("ee-cat",e.category);document.getElementById("ee-amt").value=e.amount;document.getElementById("ee-vendor").value=e.vendor||"";document.getElementById("ee-note").value=e.note||"";document.getElementById("ee-date").value=e.date||"";openModal("modal-edit-entry")}
 async function saveEditEntry(){const e=getTrip().days.find(d=>d.id===_editEntryDayId).entries.find(e=>e.id===_editEntryId);e.category=document.getElementById("ee-cat").value;e.amount=document.getElementById("ee-amt").value;e.vendor=document.getElementById("ee-vendor").value.trim();e.note=document.getElementById("ee-note").value.trim();e.date=document.getElementById("ee-date").value;if(isOnline){const{error}=await sb.from("expenses").update({category_id:e.category,amount:e.amount,vendor:e.vendor,note:e.note,expense_date:e.date}).eq("id",e.id);if(error)alert("Could not update online: "+error.message)}saveData();closeModal("modal-edit-entry");renderTripHeader();renderDaysTab()}
 async function deleteEntry(dayId,entryId){const day=getTrip().days.find(d=>d.id===dayId);day.entries=day.entries.filter(e=>e.id!==entryId);if(isOnline)await sb.from("expenses").delete().eq("id",entryId);saveData();renderTripHeader();renderDaysTab()}
-function renderFundsTab(){const t=getTrip();if(!t)return;let html=`<button class="btn btn-primary" style="margin-bottom:16px" onclick="openAddFund()">+ Add Fund / Collection</button>`;t.funds.forEach(f=>{html+=`<div class="fund-row"><div><div class="fund-name">${FUND_LABELS[f.type]||f.type}</div>${f.client?`<div class="fund-client">From: ${f.client}</div>`:""}${f.note?`<div class="fund-note">${f.note}</div>`:""}<div class="fund-date">${f.date||""}</div></div><div class="fund-right"><span class="fund-amt">${fmt(f.amount)}</span><button class="icon-btn" style="color:#C9A84C" onclick="openEditFund('${f.id}')">✏️</button><button class="icon-btn-x" onclick="deleteFund('${f.id}')">×</button></div></div>`});document.getElementById("tab-content").innerHTML=html}
+
+function renderFundsTab(){const t=getTrip();if(!t)return;let html=`<button class="btn btn-primary" style="margin-bottom:16px" onclick="openAddFund()">+ Add Trip Fund / Collection</button>`;t.funds.forEach(f=>{html+=`<div class="fund-row"><div><div class="fund-name">${FUND_LABELS[f.type]||f.type}</div>${f.client?`<div class="fund-client">From: ${f.client}</div>`:""}${f.note?`<div class="fund-note">${f.note}</div>`:""}<div class="fund-date">${f.date||""}</div></div><div class="fund-right"><span class="fund-amt">${fmt(f.amount)}</span><button class="icon-btn" style="color:#C9A84C" onclick="openEditFund('${f.id}')">✏️</button><button class="icon-btn-x" onclick="deleteFund('${f.id}')">×</button></div></div>`});document.getElementById("tab-content").innerHTML=html}
 function openAddFund(){document.getElementById("af-type").value="collection";document.getElementById("af-amt").value="";document.getElementById("af-client").value="";document.getElementById("af-note").value="";document.getElementById("af-date").value=todayStr();openModal("modal-add-fund")}
 async function addFund(){const amt=document.getElementById("af-amt").value;if(!amt)return;const t=getTrip(),type=document.getElementById("af-type").value,client=document.getElementById("af-client").value.trim(),note=document.getElementById("af-note").value.trim(),date=document.getElementById("af-date").value;let id=genId();if(isOnline&&currentUser){const{data,error}=await sb.from("trip_funds").insert({trip_id:t.id,company_id:currentUser.company_id,created_by:currentUser.id,fund_type:type,amount:amt,client,note,fund_date:date}).select().single();if(error){alert("Could not save fund online: "+error.message);return}id=data.id}t.funds.push({id,type,amount:amt,client,note,date});saveData();closeModal("modal-add-fund");renderTripHeader();renderFundsTab()}
 function openEditFund(id){const f=getTrip().funds.find(x=>x.id===id);_editFundId=id;document.getElementById("ef-type").value=f.type;document.getElementById("ef-amt").value=f.amount;document.getElementById("ef-client").value=f.client||"";document.getElementById("ef-note").value=f.note||"";document.getElementById("ef-date").value=f.date||"";openModal("modal-edit-fund")}
 async function saveEditFund(){const f=getTrip().funds.find(x=>x.id===_editFundId);f.type=document.getElementById("ef-type").value;f.amount=document.getElementById("ef-amt").value;f.client=document.getElementById("ef-client").value.trim();f.note=document.getElementById("ef-note").value.trim();f.date=document.getElementById("ef-date").value;if(isOnline){const{error}=await sb.from("trip_funds").update({fund_type:f.type,amount:f.amount,client:f.client,note:f.note,fund_date:f.date}).eq("id",f.id);if(error)alert("Could not update online: "+error.message)}saveData();closeModal("modal-edit-fund");renderTripHeader();renderFundsTab()}
 async function deleteFund(id){const t=getTrip();t.funds=t.funds.filter(f=>f.id!==id);if(isOnline)await sb.from("trip_funds").delete().eq("id",id);saveData();renderTripHeader();renderFundsTab()}
+
+/* Manifest Tab */
+function renderManifestTab(){
+  const t = getTrip();
+  if(!t) return;
+  if(!t.manifest) t.manifest = [];
+  
+  let html = `<button class="btn btn-primary" style="margin-bottom:16px" onclick="openAddClientModal()">+ Add Customer / Passenger</button>`;
+  if(!t.manifest.length){
+    html += `<div class="empty">No passengers added to manifest yet.<br/>Add names, Aadhaar, sharing types, and train/flight transit details.</div>`;
+  } else {
+    t.manifest.forEach((c, idx) => {
+      html += `
+        <div class="manifest-card">
+          <div class="client-avatar">
+            ${c.photo ? `<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover;" />` : `👤`}
+          </div>
+          <div class="client-info">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div class="client-name">${c.name} <span style="font-size:11px;color:#888;font-weight:normal;">(Age: ${c.age || 'N/A'})</span></div>
+              <button class="icon-btn-x" onclick="deleteClientManifest(${idx})">×</button>
+            </div>
+            <div class="client-detail">🏷️ <strong>${c.sharing || 'Standard'}</strong> · 🆔 Aadhaar: ${c.aadhaar || 'N/A'}</div>
+            <div class="client-detail">📍 Hometown: ${c.origin || 'N/A'}</div>
+            <div class="client-transit">🚆 Transit / Pick-up: ${c.transit || 'Direct pickup or unassigned'}</div>
+          </div>
+        </div>`;
+    });
+  }
+  document.getElementById("tab-content").innerHTML = html;
+}
+
+function openAddClientModal(){
+  document.getElementById("cl-name").value = "";
+  document.getElementById("cl-photo").value = "";
+  document.getElementById("cl-age").value = "";
+  document.getElementById("cl-aadhaar").value = "";
+  document.getElementById("cl-origin").value = "";
+  document.getElementById("cl-transit").value = "";
+  openModal("modal-add-client");
+}
+
+function saveClientManifest(){
+  const t = getTrip();
+  if(!t) return;
+  const name = document.getElementById("cl-name").value.trim();
+  if(!name){ alert("Please enter client name"); return; }
+  
+  const clientObj = {
+    id: genId(),
+    name,
+    photo: document.getElementById("cl-photo").value.trim(),
+    age: document.getElementById("cl-age").value.trim(),
+    sharing: document.getElementById("cl-sharing").value,
+    aadhaar: document.getElementById("cl-aadhaar").value.trim(),
+    origin: document.getElementById("cl-origin").value.trim(),
+    transit: document.getElementById("cl-transit").value.trim()
+  };
+
+  if(!t.manifest) t.manifest = [];
+  t.manifest.push(clientObj);
+  saveData();
+  closeModal("modal-add-client");
+  renderManifestTab();
+}
+
+function deleteClientManifest(idx){
+  if(!confirm("Remove passenger from manifest?")) return;
+  const t = getTrip();
+  if(!t) return;
+  t.manifest.splice(idx, 1);
+  saveData();
+  renderManifestTab();
+}
 
 function renderSummaryTab(){
   const t=getTrip();
@@ -818,7 +1351,7 @@ function renderSummaryTab(){
     <div class="summary-row"><span class="recon-lbl">Monthly Global Spent</span><span class="recon-val" style="color:#EC7063">${fmt(moStats.expense)}</span></div>
     <div class="summary-row" style="border-top:1px solid #333;margin-top:8px;padding-top:12px"><span style="color:#E8D5A3;font-weight:bold">Remaining Global Balance</span><span style="color:${moStats.balance>=0?"#F7DC6F":"#EC7063"};font-weight:700;font-size:16px">${fmt(moStats.balance)}</span></div>
   </div>
-  <button class="btn btn-whatsapp" onclick="shareWhatsApp()">📤 Share Clean Summary on WhatsApp</button>
+  <button class="btn btn-whatsapp" onclick="shareWhatsApp()">📤 Share Trip Statement on WhatsApp</button>
   <button class="btn btn-pdf" onclick="downloadPDF()">📄 Download & Print Professional PDF Report</button>`;
 
   document.getElementById("tab-content").innerHTML=html;
@@ -832,51 +1365,37 @@ function shareWhatsApp(){
   const balance=totalFunds-totalSpent;
 
   let msg=`🏔️ *MAHARASHTRA DESHA ADVENTURE* 🏔️\n`;
-  msg+=`📋 *TRIP EXPENSE STATEMENT*\n`;
+  msg+=`📋 *TRIP STATEMENT & MASTER ITINERARY*\n`;
   msg+=`━━━━━━━━━━━━━━━━━━━━━━\n`;
   msg+=`⛺ *Trip:* ${t.name}\n`;
   if(t.destination) msg+=`📍 *Destination:* ${t.destination}\n`;
-  msg+=`🗓️ *Date:* ${t.date || 'N/A'} | 👥 *Pax:* ${t.customers || 'N/A'}\n`;
+  msg+=`🗓️ *Date:* ${t.date || 'N/A'} | 👥 *Pax:* ${t.customers || (t.manifest ? t.manifest.length : 'N/A')}\n`;
   msg+=`👤 *Trip Leader:* ${t.leader_name || 'N/A'}\n`;
   msg+=`━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+  if(t.itinerary && t.itinerary.length > 0) {
+    msg+=`🗺️ *MASTER ITINERARY & STAYS:*\n`;
+    t.itinerary.forEach(item => {
+      msg+=`• *${item.date}* (${item.label||'Day'}): Stay: ${item.hotel||'-'} | Contact: ${item.contact||'-'}\n`;
+    });
+    msg+=`\n`;
+  }
 
   msg+=`💰 *FINANCIAL SUMMARY:*\n`;
   msg+=`• Total Funds: *₹${Number(totalFunds).toLocaleString("en-IN")}*\n`;
   msg+=`• Total Expenses: *₹${Number(totalSpent).toLocaleString("en-IN")}*\n`;
   msg+=`• Net Balance: *₹${Number(balance).toLocaleString("en-IN")}* ${balance>=0?"✅":"❌ (Deficit)"}\n\n`;
 
-  if(t.funds.length > 0) {
-    msg+=`📥 *FUNDS & COLLECTIONS:*\n`;
-    t.funds.forEach(f => {
-      msg+=`• ${FUND_LABELS[f.type]||f.type}: ₹${Number(f.amount).toLocaleString("en-IN")}`;
-      if(f.client) msg+=` (${f.client})`;
-      msg+=`\n`;
+  if(t.manifest && t.manifest.length > 0) {
+    msg+=`👥 *PASSENGER MANIFEST (${t.manifest.length} pax):*\n`;
+    t.manifest.forEach((c, i) => {
+      msg+=`${i+1}. *${c.name}* (${c.sharing || 'Standard'}, Age: ${c.age||'-'})\n`;
+      if(c.transit) msg+=`   _Transit: ${c.transit}_\n`;
     });
     msg+=`\n`;
   }
 
-  msg+=`📅 *DAY-WISE EXPENSE DETAILS:*\n`;
-  if(t.days.length === 0) {
-    msg+=`_No days or expenses logged yet._\n`;
-  } else {
-    t.days.forEach(d => {
-      const dt=d.entries.reduce((s,e)=>s+Number(e.amount),0);
-      msg+=`🔹 *${d.date}${d.label?" - "+d.label:""}* (Total: ₹${dt.toLocaleString("en-IN")})\n`;
-      if(d.entries.length === 0) {
-        msg+=`   _No expenses for this day_\n`;
-      } else {
-        d.entries.forEach(e => {
-          const cat=DB.categories.find(c=>c.id===e.category);
-          msg+=`   - ${cat?cat.label:e.category}: ₹${Number(e.amount).toLocaleString("en-IN")}`;
-          if(e.vendor) msg+=` [${e.vendor}]`;
-          if(e.note) msg+=` (${e.note})`;
-          msg+=`\n`;
-        });
-      }
-    });
-  }
-
-  msg+=`\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+  msg+=`━━━━━━━━━━━━━━━━━━━━━━\n`;
   msg+=`_Report generated via MDA Operations Suite_`;
 
   window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank");
@@ -896,7 +1415,7 @@ function downloadPDF(){
       <div style="border-bottom:3px solid #C9A84C; padding-bottom:15px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end;">
         <div>
           <div style="font-size:11px; font-weight:800; letter-spacing:3px; color:#C9A84C; text-transform:uppercase;">Maharashtra Desha Adventure</div>
-          <h1 style="margin:5px 0 0 0; font-size:22px; color:#111; font-weight:800;">Official Tour Financial & Expense Report</h1>
+          <h1 style="margin:5px 0 0 0; font-size:22px; color:#111; font-weight:800;">Official Tour Master Itinerary, Manifest & Financial Report</h1>
         </div>
         <div style="text-align:right; font-size:11px; color:#666;">
           <strong>Date:</strong> ${todayStr()}
@@ -911,7 +1430,7 @@ function downloadPDF(){
             <td style="padding:3px 0;"><strong>Start Date:</strong> ${t.date || 'N/A'}</td>
           </tr>
           <tr>
-            <td style="padding:3px 0;"><strong>Customers:</strong> ${t.customers || '?'} Pax</td>
+            <td style="padding:3px 0;"><strong>Total Passengers:</strong> ${t.manifest ? t.manifest.length : (t.customers || 'N/A')} Pax</td>
             <td style="padding:3px 0;"><strong>Trip Leader:</strong> ${t.leader_name || 'N/A'}</td>
           </tr>
         </table>
@@ -932,71 +1451,44 @@ function downloadPDF(){
         </div>
       </div>
 
-      <h3 style="font-size:14px; color:#111; border-bottom:1px solid #ccc; padding-bottom:5px; margin-top:20px; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">💵 Funds & Collections Breakdown</h3>
+      <h3 style="font-size:14px; color:#111; border-bottom:1px solid #ccc; padding-bottom:5px; margin-top:20px; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">🗺️ Master Itinerary, Stays & Contact Persons</h3>
   `;
 
-  if(!t.funds.length){
-    html+=`<p style="font-size:12px; color:#666; font-style:italic;">No funds or collections recorded.</p>`;
+  if(!t.itinerary || !t.itinerary.length){
+    html+=`<p style="font-size:12px; color:#666; font-style:italic;">No master itinerary or stay details added.</p>`;
+  }else{
+    t.itinerary.forEach(item=>{
+      html+=`<div style="margin-bottom:10px; border:1px solid #ddd; border-radius:6px; padding:10px; font-size:12px;">
+        <strong>📅 ${item.date} — ${item.label||''}</strong><br/>
+        <em>Spots/Activity:</i> ${item.desc||'-'}<br/>
+        <strong>🏨 Stay:</strong> ${item.hotel||'-'} | <strong>Contact:</strong> ${item.contact||'-'} | <strong>Map:</strong> ${item.map||'N/A'}
+      </div>`;
+    });
+  }
+
+  html+=`<h3 style="font-size:14px; color:#111; border-bottom:1px solid #ccc; padding-bottom:5px; margin-top:20px; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">👥 Passenger Manifest & Logistics</h3>`;
+  if(!t.manifest || !t.manifest.length){
+    html+=`<p style="font-size:12px; color:#666; font-style:italic;">No passenger manifest details added.</p>`;
   }else{
     html+=`<table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:12px;">
       <thead>
         <tr style="background:#2c3e50; color:#fff; text-align:left;">
-          <th style="padding:8px; border:1px solid #2c3e50;">Fund Type</th>
-          <th style="padding:8px; border:1px solid #2c3e50;">Source / Client</th>
-          <th style="padding:8px; border:1px solid #2c3e50;">Note</th>
-          <th style="padding:8px; border:1px solid #2c3e50; text-align:right;">Amount</th>
+          <th style="padding:8px; border:1px solid #2c3e50;">Name</th>
+          <th style="padding:8px; border:1px solid #2c3e50;">Sharing & Age</th>
+          <th style="padding:8px; border:1px solid #2c3e50;">Aadhaar / Hometown</th>
+          <th style="padding:8px; border:1px solid #2c3e50;">Transit & Pick-up Details</th>
         </tr>
       </thead>
       <tbody>`;
-    t.funds.forEach(f=>{
+    t.manifest.forEach(c=>{
       html+=`<tr>
-        <td style="padding:7px 8px; border:1px solid #ddd;">${FUND_LABELS[f.type]||f.type}</td>
-        <td style="padding:7px 8px; border:1px solid #ddd;">${f.client||'-'}</td>
-        <td style="padding:7px 8px; border:1px solid #ddd;">${f.note||'-'}</td>
-        <td style="padding:7px 8px; border:1px solid #ddd; text-align:right; font-weight:600; color:#27ae60;">${fmt(f.amount)}</td>
+        <td style="padding:7px 8px; border:1px solid #ddd; font-weight:600;">${c.name}</td>
+        <td style="padding:7px 8px; border:1px solid #ddd;">${c.sharing||'-'} (Age: ${c.age||'-'})</td>
+        <td style="padding:7px 8px; border:1px solid #ddd;">${c.aadhaar||'-'}<br/><span style="color:#555;">From: ${c.origin||'-'}</span></td>
+        <td style="padding:7px 8px; border:1px solid #ddd;">${c.transit||'-'}</td>
       </tr>`;
     });
     html+=`</tbody></table>`;
-  }
-
-  html+=`<h3 style="font-size:14px; color:#111; border-bottom:1px solid #ccc; padding-bottom:5px; margin-top:20px; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">📅 Day-wise Expenses Breakdown</h3>`;
-  
-  if(!t.days.length){
-    html+=`<p style="font-size:12px; color:#666; font-style:italic;">No days or expenses logged yet.</p>`;
-  }else{
-    t.days.forEach(d=>{
-      const dt=d.entries.reduce((s,e)=>s+Number(e.amount),0);
-      html+=`<div style="margin-bottom:15px; border:1px solid #ccc; border-radius:4px; overflow:hidden;">
-        <div style="background:#ecf0f1; padding:8px 12px; display:flex; justify-content:space-between; font-weight:bold; font-size:13px; color:#2c3e50;">
-          <span>📅 Date: ${d.date} ${d.label ? '— ' + d.label : ''}</span>
-          <span>Day Total: ${fmt(dt)}</span>
-        </div>`;
-      if(!d.entries.length){
-        html+=`<div style="padding:8px 12px; font-size:12px; color:#777; font-style:italic;">No expenses recorded for this day.</div>`;
-      }else{
-        html+=`<table style="width:100%; border-collapse:collapse; font-size:12px;">
-          <thead>
-            <tr style="background:#f8f9fa; color:#333; text-align:left;">
-              <th style="padding:6px 10px; border-bottom:1px solid #ddd;">Category</th>
-              <th style="padding:6px 10px; border-bottom:1px solid #ddd;">Vendor / Payee</th>
-              <th style="padding:6px 10px; border-bottom:1px solid #ddd;">Description / Note</th>
-              <th style="padding:6px 10px; border-bottom:1px solid #ddd; text-align:right;">Amount</th>
-            </tr>
-          </thead>
-          <tbody>`;
-        d.entries.forEach(e=>{
-          const cat=DB.categories.find(c=>c.id===e.category);
-          html+=`<tr>
-            <td style="padding:6px 10px; border-bottom:1px solid #eee;">${cat?cat.label:e.category}</td>
-            <td style="padding:6px 10px; border-bottom:1px solid #eee;">${e.vendor||'-'}</td>
-            <td style="padding:6px 10px; border-bottom:1px solid #eee;">${e.note||'-'}</td>
-            <td style="padding:6px 10px; border-bottom:1px solid #eee; text-align:right; font-weight:600;">${fmt(e.amount)}</td>
-          </tr>`;
-        });
-        html+=`</tbody></table>`;
-      }
-      html+=`</div>`;
-    });
   }
 
   html+=`
