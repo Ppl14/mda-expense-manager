@@ -134,7 +134,7 @@
 </head>
 <body>
 
-<div id="login-screen" class="hidden">
+<div id="login-screen">
   <div class="login-box">
     <h1>Tour Captain Pro</h1>
     <p>Maharashtra Desha Adventure</p>
@@ -164,7 +164,7 @@
   <div class="main-header">
     <div class="brand-tag">Maharashtra Desha Adventure</div>
     <h1>Expense Manager <span class="sync-badge sync-on" id="sync-badge">● Synced</span></h1>
-    <p>Organize tours, clients, and vendors.</p>
+    <p id="main-user-status">Organize tours, clients, and vendors.</p>
   </div>
   <div class="content">
     <button class="btn btn-primary" onclick="openModal('modal-new-trip')" style="margin-bottom:20px">+ New Trip / Tour</button>
@@ -448,6 +448,13 @@ const FUND_LABELS = {
   refund:          "↩️ Refund Received",
 };
 
+const SUPABASE_URL = "https://ckgihbgxvrosppeforgu.supabase.co";
+const SUPABASE_KEY = "sb_publishable_NvWWL7_RNTGtWWt5WFMLYQ_s8sVekUC";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+
+let currentUser = null; 
+let isOnline = navigator.onLine;
+
 function getStorageKey() {
   return currentUser ? `mda_exp_${currentUser.id}` : 'mda_exp_guest';
 }
@@ -468,12 +475,6 @@ let currentTripId = null;
 let currentTab = "days";
 let _addEntryDayId = null, _editEntryDayId = null, _editEntryId = null, _editFundId = null;
 
-const SUPABASE_URL = "https://ckgihbgxvrosppeforgu.supabase.co";
-const SUPABASE_KEY = "sb_publishable_NvWWL7_RNTGtWWt5WFMLYQ_s8sVekUC";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
-let currentUser = null; 
-let isOnline = navigator.onLine;
-
 window.addEventListener('online', ()=>{ isOnline = true; updateSyncBadge(); fetchRemoteData(); });
 window.addEventListener('offline', ()=>{ isOnline = false; updateSyncBadge(); });
 
@@ -485,12 +486,22 @@ function updateSyncBadge() {
 }
 
 async function initApp() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session || !session.user) {
-    document.getElementById('login-screen').classList.remove('hidden');
-  } else {
+  try {
+    const { data: { session }, error } = await sb.auth.getSession();
+    if (error || !session || !session.user) {
+      showLoginScreen();
+      return;
+    }
     await afterLogin(session.user);
+  } catch (err) {
+    showLoginScreen();
   }
+}
+
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.remove('hidden');
+  const errEl = document.getElementById('login-err');
+  if (errEl) errEl.textContent = '';
 }
 
 async function doLogin() {
@@ -498,37 +509,78 @@ async function doLogin() {
   const password = document.getElementById('login-password').value;
   const errEl = document.getElementById('login-err');
   errEl.textContent = '';
-  if(!email || !password){ errEl.textContent = 'Enter email and password'; return; }
+
+  if (!email || !password) {
+    errEl.textContent = 'Enter email and password';
+    return;
+  }
+
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if(error){ errEl.textContent = error.message; return; }
+  if (error) {
+    errEl.textContent = error.message;
+    return;
+  }
+
   await afterLogin(data.user);
 }
 
 async function afterLogin(user) {
-  const { data: profile, error } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
-  
-  if(error) { 
-    document.getElementById('login-err').textContent = 'Profile Error: ' + error.message; 
-    return; 
+  let profile = null;
+  try {
+    const { data, error } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    if (!error && data) {
+      profile = data;
+    }
+  } catch (e) {
+    console.warn('Profile fetch warning:', e);
   }
-  
-  if(!profile) {
-    currentUser = { id: user.id, role: 'leader', company_id: null, full_name: user.email.split('@')[0] };
-  } else {
-    currentUser = { id: profile.id, role: profile.role || 'leader', company_id: profile.company_id, full_name: profile.full_name || user.email.split('@')[0] };
-  }
+
+  currentUser = {
+    id: user.id,
+    role: (profile && profile.role) ? profile.role : 'leader',
+    company_id: (profile && profile.company_id) ? profile.company_id : null,
+    full_name: (profile && profile.full_name) ? profile.full_name : (user.email ? user.email.split('@')[0] : 'Leader')
+  };
 
   DB = loadData();
   document.getElementById('login-screen').classList.add('hidden');
+
+  const headerSubtitle = document.getElementById('main-user-status');
+  if (headerSubtitle) {
+    headerSubtitle.textContent = `Logged in as ${currentUser.full_name} (${currentUser.role.toUpperCase()})`;
+  }
+  
+  const settingsAccountInfo = document.getElementById('settings-account-info');
+  if (settingsAccountInfo) {
+    settingsAccountInfo.textContent = `${currentUser.full_name} · Role: ${currentUser.role.toUpperCase()}`;
+  }
+
   await fetchRemoteData();
-  document.querySelector('.main-header p').textContent = `Logged in as ${currentUser.full_name} (${currentUser.role})`;
 }
 
-async function logout() { 
-  if(currentUser) localStorage.removeItem(getStorageKey());
-  await sb.auth.signOut(); 
-  currentUser = null;
-  location.reload(); 
+async function logout() {
+  try {
+    if (currentUser) {
+      localStorage.removeItem(getStorageKey());
+    }
+    currentUser = null;
+    await sb.auth.signOut();
+
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-') || key.includes('supabase')) {
+        localStorage.removeItem(key);
+      }
+    });
+
+    const emailInput = document.getElementById('login-email');
+    const pwdInput = document.getElementById('login-password');
+    if (emailInput) emailInput.value = '';
+    if (pwdInput) pwdInput.value = '';
+
+    window.location.reload();
+  } catch (e) {
+    window.location.reload();
+  }
 }
 
 async function fetchRemoteData() {
@@ -747,7 +799,7 @@ function renderSettings() {
     </div>
   `).join('');
   const info = document.getElementById('settings-account-info');
-  if(info && currentUser) info.textContent = `${currentUser.full_name} · Role: ${currentUser.role}`;
+  if(info && currentUser) info.textContent = `${currentUser.full_name} · Role: ${currentUser.role.toUpperCase()}`;
 }
 
 function openEditCategory(id) {
@@ -1292,7 +1344,6 @@ function shareWhatsApp() {
   window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
 }
 
-// Initialize Application
 initApp();
 document.getElementById('login-password').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
 </script>
