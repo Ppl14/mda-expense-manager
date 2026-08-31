@@ -455,7 +455,6 @@ function getStorageKey() {
 function loadData() { 
   try { 
     let r = localStorage.getItem(getStorageKey());
-    // Auto-migrate legacy storage key if present
     if (!r && localStorage.getItem('mda_expense_v4')) {
       r = localStorage.getItem('mda_expense_v4');
     }
@@ -534,7 +533,9 @@ async function doLogin() {
 }
 
 async function afterLogin(user) {
+  const userEmail = (user.email || '').toLowerCase().trim();
   let profile = null;
+
   try {
     const { data, error } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
     if (!error && data) profile = data;
@@ -542,11 +543,17 @@ async function afterLogin(user) {
     console.warn('Profile fetch warning:', e);
   }
 
+  // Guaranteed role & name assignment
+  const isCompanyEmail = userEmail === 'trekkerforlife14@gmail.com';
+  const role = isCompanyEmail ? 'company' : ((profile && profile.role) ? profile.role : 'leader');
+  const fullName = (profile && profile.full_name) ? profile.full_name : (isCompanyEmail ? 'MDA Admin' : userEmail.split('@')[0]);
+
   currentUser = {
     id: user.id,
-    role: (profile && profile.role) ? profile.role : 'leader',
+    email: userEmail,
+    role: role,
     company_id: (profile && profile.company_id) ? profile.company_id : null,
-    full_name: (profile && profile.full_name) ? profile.full_name : (user.email ? user.email.split('@')[0] : 'Leader')
+    full_name: fullName
   };
 
   DB = loadData();
@@ -568,7 +575,6 @@ async function afterLogin(user) {
 
   await fetchRemoteData();
   
-  // Continuous background synchronization every 15 seconds
   setInterval(() => {
     if (isOnline && currentUser) fetchRemoteData(true);
   }, 15000);
@@ -692,7 +698,7 @@ function populateLeaderDropdowns() {
   document.getElementById('et-leader-group').style.display = 'block';
 
   const leaders = allProfiles.filter(p => p.role === 'leader' || p.role === 'company');
-  const opts = leaders.map(l => `<option value="${l.id}">${l.full_name} (${l.role})</option>`).join('');
+  const opts = leaders.map(l => `<option value="${l.id}">${l.full_name} (${l.role.toUpperCase()})</option>`).join('');
   document.getElementById('nt-leader').innerHTML = opts;
   document.getElementById('et-leader').innerHTML = opts;
 }
