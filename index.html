@@ -8,6 +8,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <title>MDA Expense Manager Pro</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- jsPDF and AutoTable for PDF Generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <style>
   #login-screen { position:fixed; inset:0; background:#0D0D1A; z-index:999; display:flex; align-items:center; justify-content:center; padding:20px; }
   #login-screen.hidden { display:none; }
@@ -86,6 +89,7 @@
   .btn-primary { background: linear-gradient(135deg,#C9A84C,#E8D5A3); color: #0D0D1A; }
   .btn-success { background: #27AE60; color: #fff; }
   .btn-ghost { background: #2D2D4E; color: #CCC; }
+  .btn-pdf { background: #E74C3C; color: #fff; }
   .btn-whatsapp { background: #25D366; color: #fff; font-size: 16px; padding: 14px; }
   .btn-danger { background: #EC7063; color: #fff; }
   .btn-inline { width: auto; display: inline-block; padding: 9px 14px; font-size: 13px; }
@@ -543,7 +547,6 @@ async function afterLogin(user) {
     console.warn('Profile fetch warning:', e);
   }
 
-  // Guaranteed role & name assignment
   const isCompanyEmail = userEmail === 'trekkerforlife14@gmail.com';
   const role = isCompanyEmail ? 'company' : ((profile && profile.role) ? profile.role : 'leader');
   const fullName = (profile && profile.full_name) ? profile.full_name : (isCompanyEmail ? 'MDA Admin' : userEmail.split('@')[0]);
@@ -1133,9 +1136,7 @@ async function deleteTrip() {
   if(!confirm(`Delete trip "${t.name}" permanently?`)) return;
 
   if(isOnline) {
-    await sb.from('expenses').delete().eq('trip_id', t.id);
-    await sb.from('trip_funds').delete().eq('trip_id', t.id);
-    await sb.from('trip_days').delete().eq('trip_id', t.id);
+    // Delete parent trip safely
     const { error } = await sb.from('trips').delete().eq('id', t.id);
     if(error) { alert('Delete failed: ' + error.message); return; }
   }
@@ -1374,7 +1375,7 @@ async function deleteFund(id) {
   saveData(); renderTripHeader(); renderFundsTab();
 }
 
-// SUMMARY & EXPORT
+// SUMMARY & PDF EXPORT
 function renderSummaryTab() {
   const t = getTrip(); if(!t) return;
   const catTotals = {}; DB.categories.forEach(c=>catTotals[c.id]=0);
@@ -1402,31 +1403,99 @@ function renderSummaryTab() {
   </div>`;
   html += `<div class="btn-row">
     <button class="btn btn-whatsapp" onclick="shareWhatsApp()">📤 WhatsApp</button>
-    <button class="btn btn-ghost" onclick="exportTripCSV()">📄 Export CSV</button>
+    <button class="btn btn-pdf" onclick="exportTripPDF()">📄 Export PDF</button>
   </div>`;
   document.getElementById('tab-content').innerHTML = html;
 }
 
-function exportTripCSV() {
+function exportTripPDF() {
   const t = getTrip(); if(!t) return;
-  let csv = "Type,Date,Category/Source,Amount,Mode,Vendor/Client,Note\n";
-  t.funds.forEach(f => {
-    csv += `Fund,"${f.date}","${f.type}",${f.amount},"${f.mode||''}","${f.client||''}","${f.note||''}"\n`;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const totalSpent = t.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0);
+  const totalFunds = t.funds.reduce((s,f)=>s+Number(f.amount),0);
+  const balance = totalFunds - totalSpent;
+
+  // Header
+  doc.setFontSize(18);
+  doc.setTextColor(30, 30, 60);
+  doc.text("MAHARASHTRA DESHA ADVENTURE", 14, 18);
+  doc.setFontSize(14);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Tour Statement: ${t.name}`, 14, 26);
+  
+  doc.setFontSize(10);
+  doc.text(`Destination: ${t.destination || 'N/A'} | Date: ${t.date || 'N/A'} | Pax: ${t.customers || 'N/A'}`, 14, 32);
+  if(t.leader_name) doc.text(`Tour Leader: ${t.leader_name}`, 14, 38);
+
+  let currentY = t.leader_name ? 44 : 38;
+
+  // Financial Overview Box
+  doc.autoTable({
+    startY: currentY,
+    head: [['Total Funds Received', 'Total Expenses Incurred', 'Net Trip Balance']],
+    body: [[`Rs. ${totalFunds.toLocaleString('en-IN')}`, `Rs. ${totalSpent.toLocaleString('en-IN')}`, `Rs. ${balance.toLocaleString('en-IN')}`]],
+    theme: 'grid',
+    headStyles: { fillColor: [45, 45, 78], textColor: 255, fontStyle: 'bold' }
   });
+
+  currentY = doc.lastAutoTable.finalY + 10;
+
+  // Funds Section
+  doc.setFontSize(12);
+  doc.setTextColor(30, 30, 60);
+  doc.text("1. Funds & Collections", 14, currentY);
+
+  const fundRows = t.funds.map(f => [
+    f.date || '',
+    FUND_LABELS[f.type] || f.type,
+    `Rs. ${Number(f.amount).toLocaleString('en-IN')}`,
+    f.mode || 'UPI / Online',
+    f.client || '',
+    f.note || ''
+  ]);
+
+  doc.autoTable({
+    startY: currentY + 4,
+    head: [['Date', 'Type', 'Amount', 'Payment Mode', 'Source / Client', 'Note']],
+    body: fundRows.length ? fundRows : [['-', 'No fund records', '-', '-', '-', '-']],
+    theme: 'striped',
+    headStyles: { fillColor: [39, 174, 96] }
+  });
+
+  currentY = doc.lastAutoTable.finalY + 10;
+
+  // Expenses Section
+  doc.setFontSize(12);
+  doc.setTextColor(30, 30, 60);
+  doc.text("2. Day-Wise Expenses", 14, currentY);
+
+  const expenseRows = [];
   t.days.forEach(d => {
     d.entries.forEach(e => {
       const cat = DB.categories.find(c=>c.id===e.category);
-      csv += `Expense,"${e.date}","${cat?cat.label:e.category}",${e.amount},"${e.mode||''}","${e.vendor||''}","${e.note||''}"\n`;
+      expenseRows.push([
+        d.date || '',
+        d.label || '',
+        cat ? cat.label : e.category,
+        `Rs. ${Number(e.amount).toLocaleString('en-IN')}`,
+        e.mode || 'UPI / Online',
+        e.vendor || '',
+        e.note || ''
+      ]);
     });
   });
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${t.name.replace(/\s+/g,'_')}_expenses.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+
+  doc.autoTable({
+    startY: currentY + 4,
+    head: [['Date', 'Day Label', 'Category', 'Amount', 'Payment Mode', 'Vendor', 'Note']],
+    body: expenseRows.length ? expenseRows : [['-', '-', 'No expenses recorded', '-', '-', '-', '-']],
+    theme: 'striped',
+    headStyles: { fillColor: [236, 112, 99] }
+  });
+
+  doc.save(`${t.name.replace(/\s+/g,'_')}_Statement.pdf`);
 }
 
 function shareWhatsApp() {
@@ -1445,4 +1514,3 @@ document.getElementById('login-password').addEventListener('keydown', function(e
 </script>
 </body>
 </html>
-
