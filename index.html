@@ -1413,89 +1413,145 @@ function exportTripPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
+  // Financial Calculations
   const totalSpent = t.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0);
   const totalFunds = t.funds.reduce((s,f)=>s+Number(f.amount),0);
   const balance = totalFunds - totalSpent;
 
-  // Header
+  // Category-wise totals
+  const catTotals = {};
+  t.days.forEach(d => d.entries.forEach(e => {
+    catTotals[e.category] = (catTotals[e.category] || 0) + Number(e.amount);
+  }));
+
+  // --- Header ---
   doc.setFontSize(18);
   doc.setTextColor(30, 30, 60);
-  doc.text("MAHARASHTRA DESHA ADVENTURE", 14, 18);
-  doc.setFontSize(14);
+  doc.text("MAHARASHTRA DESHA ADVENTURE", 14, 20);
+  doc.setFontSize(12);
   doc.setTextColor(100, 100, 100);
-  doc.text(`Tour Statement: ${t.name}`, 14, 26);
+  doc.text("Account Reconciliation Report", 14, 26);
   
-  doc.setFontSize(10);
-  doc.text(`Destination: ${t.destination || 'N/A'} | Date: ${t.date || 'N/A'} | Pax: ${t.customers || 'N/A'}`, 14, 32);
-  if(t.leader_name) doc.text(`Tour Leader: ${t.leader_name}`, 14, 38);
+  doc.setFontSize(9);
+  doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, 14, 32);
 
-  let currentY = t.leader_name ? 44 : 38;
+  let currentY = 38;
 
-  // Financial Overview Box
+  // --- 1. Executive Summary & Trip Details ---
   doc.autoTable({
     startY: currentY,
-    head: [['Total Funds Received', 'Total Expenses Incurred', 'Net Trip Balance']],
-    body: [[`Rs. ${totalFunds.toLocaleString('en-IN')}`, `Rs. ${totalSpent.toLocaleString('en-IN')}`, `Rs. ${balance.toLocaleString('en-IN')}`]],
+    head: [['Trip Details', 'Financial Summary']],
+    body: [[
+      `Trip Name: ${t.name}\nDestination: ${t.destination || 'N/A'}\nDates: ${t.date || 'N/A'}\nPax: ${t.customers || 'N/A'}\nLeader: ${t.leader_name || 'N/A'}`,
+      `Total Funds Received: Rs. ${totalFunds.toLocaleString('en-IN')}\nTotal Expenses: Rs. ${totalSpent.toLocaleString('en-IN')}\n\nNet Balance: Rs. ${balance.toLocaleString('en-IN')}`
+    ]],
     theme: 'grid',
-    headStyles: { fillColor: [45, 45, 78], textColor: 255, fontStyle: 'bold' }
+    headStyles: { fillColor: [45, 45, 78], textColor: 255 },
+    styles: { cellPadding: 5, valign: 'top', fontSize: 10 }
   });
-
+  
   currentY = doc.lastAutoTable.finalY + 10;
 
-  // Funds Section
+  // --- 2. Category-wise Expense Breakdown ---
   doc.setFontSize(12);
-  doc.setTextColor(30, 30, 60);
-  doc.text("1. Funds & Collections", 14, currentY);
+  doc.setTextColor(45, 45, 78);
+  doc.text("Category Breakdown", 14, currentY);
+
+  const catRows = Object.keys(catTotals).map(catId => {
+    const cat = DB.categories.find(c => c.id === catId);
+    return [cat ? cat.label : catId, `Rs. ${catTotals[catId].toLocaleString('en-IN')}`];
+  });
+
+  doc.autoTable({
+    startY: currentY + 4,
+    head: [['Category', 'Total Spent']],
+    body: catRows.length ? catRows : [['No expenses', '-']],
+    theme: 'plain',
+    headStyles: { textColor: [100, 100, 100] },
+    columnStyles: { 1: { fontStyle: 'bold' } },
+    margin: { left: 14, right: 110 } // Keeps it compact on the left side
+  });
+
+  currentY = doc.lastAutoTable.finalY + 15;
+
+  // --- 3. Incoming Funds ---
+  doc.setFontSize(13);
+  doc.setTextColor(39, 174, 96);
+  doc.text("Incoming Funds & Collections", 14, currentY);
 
   const fundRows = t.funds.map(f => [
-    f.date || '',
+    f.date || '-',
     FUND_LABELS[f.type] || f.type,
-    `Rs. ${Number(f.amount).toLocaleString('en-IN')}`,
-    f.mode || 'UPI / Online',
-    f.client || '',
-    f.note || ''
+    f.client || '-',
+    f.mode || '-',
+    f.note || '-',
+    `Rs. ${Number(f.amount).toLocaleString('en-IN')}`
   ]);
 
   doc.autoTable({
     startY: currentY + 4,
-    head: [['Date', 'Type', 'Amount', 'Payment Mode', 'Source / Client', 'Note']],
-    body: fundRows.length ? fundRows : [['-', 'No fund records', '-', '-', '-', '-']],
+    head: [['Date', 'Type', 'Source / Client', 'Mode', 'Note', 'Amount']],
+    body: fundRows.length ? fundRows : [['-', '-', '-', '-', '-', '-']],
     theme: 'striped',
-    headStyles: { fillColor: [39, 174, 96] }
+    headStyles: { fillColor: [39, 174, 96] },
+    columnStyles: { 5: { halign: 'right', fontStyle: 'bold' } },
+    styles: { fontSize: 9 }
   });
 
-  currentY = doc.lastAutoTable.finalY + 10;
+  currentY = doc.lastAutoTable.finalY + 15;
 
-  // Expenses Section
-  doc.setFontSize(12);
-  doc.setTextColor(30, 30, 60);
-  doc.text("2. Day-Wise Expenses", 14, currentY);
+  // --- 4. Day-Wise Expense Bifurcation ---
+  doc.setFontSize(13);
+  doc.setTextColor(236, 112, 99);
+  doc.text("Day-Wise Expense Ledger", 14, currentY);
+  currentY += 8;
 
-  const expenseRows = [];
-  t.days.forEach(d => {
-    d.entries.forEach(e => {
-      const cat = DB.categories.find(c=>c.id===e.category);
-      expenseRows.push([
-        d.date || '',
-        d.label || '',
-        cat ? cat.label : e.category,
-        `Rs. ${Number(e.amount).toLocaleString('en-IN')}`,
-        e.mode || 'UPI / Online',
-        e.vendor || '',
-        e.note || ''
-      ]);
+  if (t.days.length === 0) {
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text("No expenses recorded for this trip.", 14, currentY);
+  } else {
+    t.days.forEach((day, index) => {
+      // Force a page break if we are near the bottom
+      if (currentY > 250) { 
+        doc.addPage(); 
+        currentY = 20; 
+      }
+      
+      const dayTotal = day.entries.reduce((s, e) => s + Number(e.amount), 0);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(45, 45, 78);
+      const dayTitle = `Day ${index + 1}: ${day.date || 'No Date'} ${day.label ? '(' + day.label + ')' : ''}`;
+      doc.text(`${dayTitle} | Day Total: Rs. ${dayTotal.toLocaleString('en-IN')}`, 14, currentY);
+
+      const entryRows = day.entries.map(e => {
+        const cat = DB.categories.find(c => c.id === e.category);
+        return [
+          cat ? cat.label : e.category,
+          e.vendor || '-',
+          e.mode || '-',
+          e.note || '-',
+          `Rs. ${Number(e.amount).toLocaleString('en-IN')}`
+        ];
+      });
+
+      doc.autoTable({
+        startY: currentY + 3,
+        head: [['Category', 'Vendor', 'Mode', 'Note', 'Amount']],
+        body: entryRows.length ? entryRows : [['-', '-', '-', '-', 'Rs. 0']],
+        theme: 'grid',
+        headStyles: { fillColor: [240, 240, 245], textColor: [50, 50, 50] },
+        columnStyles: { 4: { halign: 'right', fontStyle: 'bold' } },
+        styles: { fontSize: 9 }
+      });
+
+      currentY = doc.lastAutoTable.finalY + 10;
     });
-  });
+  }
 
-  doc.autoTable({
-    startY: currentY + 4,
-    head: [['Date', 'Day Label', 'Category', 'Amount', 'Payment Mode', 'Vendor', 'Note']],
-    body: expenseRows.length ? expenseRows : [['-', '-', 'No expenses recorded', '-', '-', '-', '-']],
-    theme: 'striped',
-    headStyles: { fillColor: [236, 112, 99] }
-  });
-
-  doc.save(`${t.name.replace(/\s+/g,'_')}_Statement.pdf`);
+  // Generate and Download
+  doc.save(`${t.name.replace(/\s+/g,'_')}_Account_Report.pdf`);
 }
 
 function shareWhatsApp() {
