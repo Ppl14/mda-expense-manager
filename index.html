@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <meta name="theme-color" content="#0D0D1A"/>
+<!-- PWA Meta Tags -->
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <title>MDA Expense Manager Pro</title>
@@ -26,7 +27,7 @@
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; background: #0D0D1A; color: #EEE; min-height: 100vh; overscroll-behavior: none; padding-bottom: 70px; }
   input, select, button { font-family: inherit; }
-  input[type="date"], input[type="color"] { color-scheme: dark; }
+  input[type="date"], input[type="color"], input[type="file"] { color-scheme: dark; }
   select option { background: #1A1A2E; }
   ::-webkit-scrollbar { width: 0; }
   .screen { display: none; }
@@ -49,7 +50,7 @@
   .stat-lbl { color: #666; font-size: 11px; }
 
   .tabs { display: flex; background: #1A1A2E; border-bottom: 1px solid #2D2D4E; }
-  .tab { flex: 1; padding: 12px 0; border: none; background: transparent; color: #555; font-weight: 500; font-size: 14px; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab { flex: 1; padding: 12px 2px; border: none; background: transparent; color: #555; font-weight: 500; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; text-align: center; }
   .tab.active { color: #E8D5A3; font-weight: 700; border-bottom-color: #C9A84C; }
 
   .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #1A1A2E; border-top: 1px solid #2D2D4E; display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
@@ -78,7 +79,7 @@
   .entry-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 4px; border-bottom: 1px solid #0D0D1A; }
   .entry-left { flex: 1; }
   .entry-note { color: #888; font-size: 12px; margin-top: 3px; }
-  .entry-meta { display: flex; gap: 8px; align-items: center; margin-top: 3px; font-size: 11px; }
+  .entry-meta { display: flex; gap: 8px; align-items: center; margin-top: 3px; font-size: 11px; flex-wrap: wrap; }
   .entry-vendor { color: #4ECDC4; font-weight: 500; }
   .entry-mode { color: #F7DC6F; background: #2D2D4E; padding: 1px 6px; border-radius: 4px; }
   .entry-right { display: flex; align-items: center; gap: 6px; }
@@ -257,6 +258,7 @@
   <div class="tabs">
     <button class="tab active" onclick="switchTripTab('days')" id="tab-days">📅 Days</button>
     <button class="tab" onclick="switchTripTab('funds')" id="tab-funds">💵 Funds</button>
+    <button class="tab" onclick="switchTripTab('manifest')" id="tab-manifest">👥 Manifest</button>
     <button class="tab" onclick="switchTripTab('summary')" id="tab-summary">📊 Summary</button>
   </div>
   <div class="content" id="tab-content"></div>
@@ -327,6 +329,9 @@
     <div class="modal-head"><h3 class="modal-title">Add Expense</h3><button class="modal-close" onclick="closeModal('modal-add-entry')">×</button></div>
     <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="ae-cat"></select></div>
     <div class="form-group"><label class="form-label">Amount (₹)</label><input class="form-input" type="number" id="ae-amt" inputmode="numeric"/></div>
+    <div class="form-group"><label class="form-label">Who Paid? (Co-Captain Split)</label>
+      <select class="form-select" id="ae-paid-by"></select>
+    </div>
     <div class="form-group"><label class="form-label">Payment Mode</label>
       <select class="form-select" id="ae-mode">
         <option value="UPI / Online">📱 UPI / Online</option>
@@ -338,6 +343,7 @@
     <div class="form-group"><label class="form-label">Vendor</label><input class="form-input" id="ae-vendor"/></div>
     <div class="form-group"><label class="form-label">Note</label><input class="form-input" id="ae-note"/></div>
     <div class="form-group"><label class="form-label">Date</label><input class="form-input" type="date" id="ae-date"/></div>
+    <div class="form-group"><label class="form-label">📷 Receipt Photo</label><input class="form-input" type="file" id="ae-receipt" accept="image/*" capture="environment" style="padding: 8px;"/></div>
     <button class="btn btn-primary" onclick="addEntry()">Add Expense</button>
   </div>
 </div>
@@ -426,6 +432,30 @@
   </div>
 </div>
 
+<!-- Passenger Modals -->
+<div class="modal-overlay hidden" id="modal-add-passenger" onclick="closeModal('modal-add-passenger')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head"><h3 class="modal-title">Add Passenger</h3><button class="modal-close" onclick="closeModal('modal-add-passenger')">×</button></div>
+    <div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="ap-name"/></div>
+    <div class="form-group"><label class="form-label">Contact Info (Phone/Emergency)</label><input class="form-input" id="ap-contact"/></div>
+    <div class="form-group"><label class="form-label">Total Trip Fee (₹)</label><input class="form-input" type="number" id="ap-fee" inputmode="numeric"/></div>
+    <div class="form-group"><label class="form-label">Amount Paid Already (₹)</label><input class="form-input" type="number" id="ap-paid" inputmode="numeric"/></div>
+    <button class="btn btn-primary" onclick="addPassenger()">Save Passenger</button>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-edit-passenger" onclick="closeModal('modal-edit-passenger')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head"><h3 class="modal-title">✏️ Edit Passenger</h3><button class="modal-close" onclick="closeModal('modal-edit-passenger')">×</button></div>
+    <input type="hidden" id="ep-id"/>
+    <div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="ep-name"/></div>
+    <div class="form-group"><label class="form-label">Contact Info</label><input class="form-input" id="ep-contact"/></div>
+    <div class="form-group"><label class="form-label">Total Trip Fee (₹)</label><input class="form-input" type="number" id="ep-fee" inputmode="numeric"/></div>
+    <div class="form-group"><label class="form-label">Amount Paid (₹)</label><input class="form-input" type="number" id="ep-paid" inputmode="numeric"/></div>
+    <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal('modal-edit-passenger')">Cancel</button><button class="btn btn-primary" onclick="saveEditPassenger()">Save</button></div>
+  </div>
+</div>
+
 <script>
 const DEFAULT_CATEGORIES = [
   { id:"food",    label:"🍽️ Food",            color:"#FF6B35" },
@@ -465,6 +495,16 @@ function loadData() {
     let db = r ? JSON.parse(r) : { trips:[], categories: DEFAULT_CATEGORIES, globalFunds: [] }; 
     if(!db.categories || !db.categories.length) db.categories = DEFAULT_CATEGORIES;
     if(!db.globalFunds) db.globalFunds = [];
+    
+    // Safely enforce missing fields on older JSON strings
+    db.trips.forEach(t => { 
+        if(!t.passengers) t.passengers = [];
+        t.days.forEach(d => d.entries.forEach(e => {
+            if(e.paid_by === undefined) e.paid_by = null;
+            if(e.receipt_url === undefined) e.receipt_url = null;
+        }));
+    });
+
     return db;
   } catch(e){ 
     return { trips:[], categories: DEFAULT_CATEGORIES, globalFunds: [] }; 
@@ -628,6 +668,13 @@ async function fetchRemoteData(isBackground = false) {
       sb.from('profiles').select('id, full_name, role')
     ]);
 
+    // Safe fetch for passengers (won't crash app if SQL table isn't created yet)
+    let passengers = [];
+    try {
+      const pRes = await sb.from('trip_passengers').select('*');
+      if(pRes.data) passengers = pRes.data;
+    } catch(err) { /* ignore safely */ }
+
     if(profs) {
       allProfiles = profs;
       populateLeaderDropdowns();
@@ -641,15 +688,8 @@ async function fetchRemoteData(isBackground = false) {
       DB.globalFunds = gtx.map(g => {
         const uProf = (allProfiles || []).find(p => p.id === g.user_id);
         return {
-          id: g.id, 
-          type: g.type, 
-          amount: g.amount, 
-          source: g.source, 
-          note: g.note, 
-          date: g.tx_date, 
-          mode: g.payment_mode || 'UPI / Online',
-          user_id: g.user_id,
-          user_name: uProf ? uProf.full_name : ''
+          id: g.id, type: g.type, amount: g.amount, source: g.source, note: g.note, date: g.tx_date, 
+          mode: g.payment_mode || 'UPI / Online', user_id: g.user_id, user_name: uProf ? uProf.full_name : ''
         };
       });
     }
@@ -660,7 +700,8 @@ async function fetchRemoteData(isBackground = false) {
         const tDays = (days||[]).filter(d=>d.trip_id===t.id && allowedTripIds.has(d.trip_id)).map(d=>({
           id:d.id, date:d.day_date, label:d.label||'',
           entries: (expenses||[]).filter(e=>e.day_id===d.id && allowedTripIds.has(e.trip_id)).map(e=>({
-            id:e.id, category:e.category_id, amount:e.amount, vendor:e.vendor||'', mode:e.payment_mode||'UPI / Online', note:e.note||'', date:e.expense_date
+            id:e.id, category:e.category_id, amount:e.amount, vendor:e.vendor||'', mode:e.payment_mode||'UPI / Online', note:e.note||'', date:e.expense_date,
+            paid_by: e.paid_by || e.created_by || null, receipt_url: e.receipt_url || null
           }))
         })).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
 
@@ -668,18 +709,16 @@ async function fetchRemoteData(isBackground = false) {
           id:f.id, type:f.fund_type, amount:f.amount, client:f.client||'', mode:f.payment_mode||'UPI / Online', note:f.note||'', date:f.fund_date
         }));
 
+        const tPass = passengers.filter(p=>p.trip_id===t.id).map(p=>({
+          id:p.id, name:p.name, contact:p.contact||'', fee:p.total_fee||0, paid:p.amount_paid||0
+        }));
+
         const lProf = (allProfiles || []).find(p => p.id === t.leader_id);
 
         return { 
-          id:t.id, 
-          name:t.name, 
-          destination:t.destination||'', 
-          date:t.trip_date, 
-          customers:t.customers, 
-          leader_id:t.leader_id, 
-          leader_name: lProf ? lProf.full_name : '',
-          days:tDays, 
-          funds:tFunds 
+          id:t.id, name:t.name, destination:t.destination||'', date:t.trip_date, customers:t.customers, 
+          leader_id:t.leader_id, leader_name: lProf ? lProf.full_name : '',
+          days:tDays, funds:tFunds, passengers:tPass 
         };
       });
     }
@@ -1063,7 +1102,7 @@ async function createTrip() {
   DB.trips.push({ 
     id, name, destination, date, customers, 
     leader_id: leaderId, leader_name: lProf ? lProf.full_name : '', 
-    days:[], funds:[] 
+    days:[], funds:[], passengers:[] 
   });
 
   saveData(); closeModal('modal-new-trip'); renderTripList();
@@ -1136,7 +1175,6 @@ async function deleteTrip() {
   if(!confirm(`Delete trip "${t.name}" permanently?`)) return;
 
   if(isOnline) {
-    // Delete parent trip safely
     const { error } = await sb.from('trips').delete().eq('id', t.id);
     if(error) { alert('Delete failed: ' + error.message); return; }
   }
@@ -1152,11 +1190,114 @@ function switchTripTab(tab) {
   document.getElementById('tab-'+tab).classList.add('active');
   if (tab==='days') renderDaysTab();
   else if (tab==='funds') renderFundsTab();
+  else if (tab==='manifest') renderManifestTab();
   else renderSummaryTab();
 }
 
 function populateCatSelect(id, selectedId) {
   document.getElementById(id).innerHTML = DB.categories.map(c => `<option value="${c.id}" ${c.id===selectedId?'selected':''}>${c.label}</option>`).join('');
+}
+
+// MANIFEST
+function renderManifestTab() {
+  const t = getTrip(); if(!t) return;
+  let html = `<button class="btn btn-primary" style="margin-bottom:16px" onclick="openAddPassenger()">+ Add Passenger</button>`;
+  
+  let totalFee = 0, totalPaid = 0;
+  if (!t.passengers || !t.passengers.length) {
+    html += '<div class="empty">No passengers added to manifest.</div>';
+  } else {
+    t.passengers.forEach(p => {
+      totalFee += Number(p.fee); totalPaid += Number(p.paid);
+      const bal = p.fee - p.paid;
+      html += `<div class="fund-row">
+        <div>
+          <div class="fund-name">👤 ${p.name}</div>
+          <div class="fund-client">📞 ${p.contact || 'No contact'}</div>
+        </div>
+        <div style="text-text-align:right;">
+          <div class="fund-amt" style="color:#EEE; font-size:13px;">Fee: ${fmt(p.fee)}</div>
+          <div class="fund-amt" style="color:#27AE60; font-size:13px;">Paid: ${fmt(p.paid)}</div>
+          <div class="fund-amt" style="color:${bal>0?'#EC7063':'#888'}; font-size:13px;">Due: ${fmt(bal)}</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:4px">
+          <button class="icon-btn" style="color:#C9A84C;" onclick="openEditPassenger('${p.id}')">✏️</button>
+          <button class="icon-btn-x" onclick="deletePassenger('${p.id}')">×</button>
+        </div>
+      </div>`;
+    });
+    
+    html += `<div class="summary-card" style="margin-top:16px">
+      <div class="summary-row"><span class="recon-lbl">Total Expected</span><span class="recon-val">${fmt(totalFee)}</span></div>
+      <div class="summary-row"><span class="recon-lbl">Total Collected</span><span class="recon-val" style="color:#27AE60">${fmt(totalPaid)}</span></div>
+      <div class="summary-row" style="border-top:1px solid #333; padding-top:8px"><span class="recon-lbl">Total Due</span><span class="recon-val" style="color:#EC7063">${fmt(totalFee - totalPaid)}</span></div>
+    </div>`;
+  }
+  document.getElementById('tab-content').innerHTML = html;
+}
+
+function openAddPassenger() {
+  document.getElementById('ap-name').value = ''; document.getElementById('ap-contact').value = '';
+  document.getElementById('ap-fee').value = ''; document.getElementById('ap-paid').value = '';
+  openModal('modal-add-passenger');
+}
+
+async function addPassenger() {
+  const t = getTrip(); if(!t) return;
+  const name = document.getElementById('ap-name').value.trim();
+  const contact = document.getElementById('ap-contact').value.trim();
+  const fee = document.getElementById('ap-fee').value || 0;
+  const paid = document.getElementById('ap-paid').value || 0;
+  if(!name) return;
+
+  let id = genId();
+  if(isOnline) {
+    const { data, error } = await sb.from('trip_passengers').insert({
+      trip_id: t.id, name, contact, total_fee: fee, amount_paid: paid
+    }).select().single();
+    
+    if(error) console.warn('Passenger sync failed. Storing locally until SQL is run.', error);
+    else id = data.id;
+  }
+  
+  t.passengers.push({ id, name, contact, fee, paid });
+  saveData(); closeModal('modal-add-passenger'); renderManifestTab();
+}
+
+function openEditPassenger(id) {
+  const t = getTrip(); const p = t.passengers.find(x=>x.id===id);
+  document.getElementById('ep-id').value = id;
+  document.getElementById('ep-name').value = p.name;
+  document.getElementById('ep-contact').value = p.contact;
+  document.getElementById('ep-fee').value = p.fee;
+  document.getElementById('ep-paid').value = p.paid;
+  openModal('modal-edit-passenger');
+}
+
+async function saveEditPassenger() {
+  const t = getTrip(); const id = document.getElementById('ep-id').value;
+  const p = t.passengers.find(x=>x.id===id);
+  const name = document.getElementById('ep-name').value.trim();
+  const contact = document.getElementById('ep-contact').value.trim();
+  const fee = document.getElementById('ep-fee').value || 0;
+  const paid = document.getElementById('ep-paid').value || 0;
+
+  if(isOnline) {
+    const { error } = await sb.from('trip_passengers').update({ name, contact, total_fee: fee, amount_paid: paid }).eq('id', id);
+    if(error) console.warn('Update failed, updating locally only.', error);
+  }
+  
+  p.name = name; p.contact = contact; p.fee = fee; p.paid = paid;
+  saveData(); closeModal('modal-edit-passenger'); renderManifestTab();
+}
+
+async function deletePassenger(id) {
+  if(!confirm('Remove passenger?')) return;
+  if(isOnline) {
+    await sb.from('trip_passengers').delete().eq('id', id);
+  }
+  const t = getTrip(); t.passengers = t.passengers.filter(x=>x.id!==id);
+  saveData(); renderManifestTab();
 }
 
 // DAYS & EXPENSES
@@ -1175,12 +1316,15 @@ function renderDaysTab() {
         <div class="day-entries">`;
       day.entries.forEach(e => {
         const cat = DB.categories.find(c=>c.id===e.category)||{label:e.category,color:'#888'};
+        const paidByName = e.paid_by ? (allProfiles.find(p=>p.id===e.paid_by)?.full_name || 'Leader') : '';
         html += `<div class="entry-row">
             <div class="entry-left">
               <span class="badge" style="background:${cat.color}33;color:${cat.color};border:1px solid ${cat.color}55">${cat.label}</span>
               <div class="entry-meta">
                 ${e.vendor ? `<span class="entry-vendor">🏢 ${e.vendor}</span>` : ''}
                 <span class="entry-mode">${e.mode || 'UPI / Online'}</span>
+                ${e.receipt_url ? `<a href="${e.receipt_url}" target="_blank" style="color:#4ECDC4; text-decoration:none;">📎 Receipt</a>` : ''}
+                ${paidByName ? `<span style="color:#AAA;">👤 By ${paidByName}</span>` : ''}
               </div>
               ${e.note?`<div class="entry-note">${e.note}</div>`:''}
             </div>
@@ -1216,8 +1360,14 @@ async function addDay() {
 function openAddEntry(dayId) {
   _addEntryDayId = dayId;
   populateCatSelect('ae-cat', DB.categories[0].id);
+  
+  const pbSel = document.getElementById('ae-paid-by');
+  const leaders = allProfiles.filter(p => p.role === 'leader' || p.role === 'company');
+  pbSel.innerHTML = leaders.map(l => `<option value="${l.id}" ${l.id===currentUser.id?'selected':''}>${l.full_name}</option>`).join('');
+
   document.getElementById('ae-amt').value = ''; document.getElementById('ae-vendor').value = '';
   document.getElementById('ae-note').value = ''; document.getElementById('ae-mode').value = 'UPI / Online';
+  document.getElementById('ae-receipt').value = '';
   document.getElementById('ae-date').value = getTrip().days.find(d=>d.id===dayId).date || todayStr();
   openModal('modal-add-entry');
 }
@@ -1231,17 +1381,48 @@ async function addEntry() {
   const mode = document.getElementById('ae-mode').value;
   const note = document.getElementById('ae-note').value.trim();
   const date = document.getElementById('ae-date').value;
+  const paidBy = document.getElementById('ae-paid-by').value;
+  
   let id = genId();
+  let receipt_url = null;
+
+  const fileInput = document.getElementById('ae-receipt');
+  if (fileInput.files.length > 0 && isOnline) {
+    const file = fileInput.files[0];
+    const ext = file.name.split('.').pop();
+    const fileName = `${id}.${ext}`;
+    try {
+      const { error: upErr } = await sb.storage.from('receipts').upload(fileName, file);
+      if (!upErr) receipt_url = sb.storage.from('receipts').getPublicUrl(fileName).data.publicUrl;
+    } catch(e) { console.warn("Receipt upload failed"); }
+  }
+
+  let entryObj = { id, category, amount: amt, vendor, mode, note, date, paid_by: paidBy, receipt_url };
 
   if(isOnline && currentUser) {
-    const { data, error } = await sb.from('expenses').insert({
+    let insertReq = {
       trip_id:t.id, day_id:_addEntryDayId, company_id:currentUser.company_id, created_by:currentUser.id,
-      category_id:category, amount:amt, vendor, payment_mode:mode, note, expense_date:date
-    }).select().single();
+      category_id:category, amount:amt, vendor, payment_mode:mode, note, expense_date:date,
+      paid_by: paidBy, receipt_url: receipt_url
+    };
+    
+    let { data, error } = await sb.from('expenses').insert(insertReq).select().single();
+    
+    // SAFE FALLBACK: If SQL schema wasn't updated yet, retry without new columns
+    if(error && error.message.includes('column')) {
+        console.warn('DB missing new columns. Falling back to legacy insert.');
+        delete insertReq.paid_by;
+        delete insertReq.receipt_url;
+        const fallback = await sb.from('expenses').insert(insertReq).select().single();
+        data = fallback.data; error = fallback.error;
+        entryObj.paid_by = null; entryObj.receipt_url = null;
+    }
+
     if(error){ alert('Error: ' + error.message); return; }
-    id = data.id;
+    entryObj.id = data.id;
   }
-  t.days.find(d=>d.id===_addEntryDayId).entries.push({ id, category, amount: amt, vendor, mode, note, date });
+  
+  t.days.find(d=>d.id===_addEntryDayId).entries.push(entryObj);
   saveData(); closeModal('modal-add-entry'); renderTripHeader(); renderDaysTab();
 }
 
@@ -1395,6 +1576,23 @@ function renderSummaryTab() {
   });
   html += `</div>`;
 
+  // Co-Captain Splitting Visual
+  const leaderSpending = {};
+  t.days.forEach(d => d.entries.forEach(e => {
+     const pid = e.paid_by || t.leader_id;
+     leaderSpending[pid] = (leaderSpending[pid] || 0) + Number(e.amount);
+  }));
+
+  if(Object.keys(leaderSpending).length > 1) {
+     html += `<div class="summary-card" style="margin-bottom:14px"><div class="summary-title">🤝 Co-Captain Spending</div>`;
+     for (const pid in leaderSpending) {
+       const prof = allProfiles.find(p => p.id === pid);
+       const name = prof ? prof.full_name : 'Leader';
+       html += `<div class="summary-row"><span class="recon-lbl">${name} Paid</span><span class="recon-val">${fmt(leaderSpending[pid])}</span></div>`;
+     }
+     html += `</div>`;
+  }
+
   html += `<div class="summary-card" style="margin-bottom:20px">
     <div class="summary-title">💼 Final Reconciliation</div>
     <div class="summary-row"><span class="recon-lbl">Total Funds</span><span class="recon-val" style="color:#27AE60">${fmt(totalFunds)}</span></div>
@@ -1413,31 +1611,36 @@ function exportTripPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  // Financial Calculations
+  const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+  let currentY = 38;
+
+  const checkPageBreak = (requiredSpace) => {
+    if (currentY + requiredSpace > pageHeight - 15) {
+      doc.addPage();
+      currentY = 20; 
+    }
+  };
+
   const totalSpent = t.days.reduce((s,d)=>s+d.entries.reduce((ss,e)=>ss+Number(e.amount),0),0);
   const totalFunds = t.funds.reduce((s,f)=>s+Number(f.amount),0);
   const balance = totalFunds - totalSpent;
 
-  // Category-wise totals
   const catTotals = {};
   t.days.forEach(d => d.entries.forEach(e => {
     catTotals[e.category] = (catTotals[e.category] || 0) + Number(e.amount);
   }));
 
-  // --- Header ---
+  // --- 1. Header (First Page) ---
   doc.setFontSize(18);
   doc.setTextColor(30, 30, 60);
   doc.text("MAHARASHTRA DESHA ADVENTURE", 14, 20);
   doc.setFontSize(12);
   doc.setTextColor(100, 100, 100);
   doc.text("Account Reconciliation Report", 14, 26);
-  
   doc.setFontSize(9);
   doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, 14, 32);
 
-  let currentY = 38;
-
-  // --- 1. Executive Summary & Trip Details ---
+  // --- 2. Executive Summary ---
   doc.autoTable({
     startY: currentY,
     head: [['Trip Details', 'Financial Summary']],
@@ -1449,42 +1652,65 @@ function exportTripPDF() {
     headStyles: { fillColor: [45, 45, 78], textColor: 255 },
     styles: { cellPadding: 5, valign: 'top', fontSize: 10 }
   });
-  
   currentY = doc.lastAutoTable.finalY + 10;
 
-  // --- 2. Category-wise Expense Breakdown ---
+  // --- 3. Category Breakdown ---
+  checkPageBreak(35);
   doc.setFontSize(12);
   doc.setTextColor(45, 45, 78);
   doc.text("Category Breakdown", 14, currentY);
 
-  const catRows = Object.keys(catTotals).map(catId => {
-    const cat = DB.categories.find(c => c.id === catId);
-    return [cat ? cat.label : catId, `Rs. ${catTotals[catId].toLocaleString('en-IN')}`];
-  });
+  const catRows = Object.keys(catTotals)
+    .sort((a,b) => catTotals[b] - catTotals[a])
+    .map(catId => {
+      const cat = DB.categories.find(c => c.id === catId);
+      return [cat ? cat.label : catId, `Rs. ${catTotals[catId].toLocaleString('en-IN')}`];
+    });
+  
+  catRows.push([{ content: 'Grand Total', styles: { fontStyle: 'bold' } }, { content: `Rs. ${totalSpent.toLocaleString('en-IN')}`, styles: { fontStyle: 'bold' } }]);
 
   doc.autoTable({
     startY: currentY + 4,
     head: [['Category', 'Total Spent']],
-    body: catRows.length ? catRows : [['No expenses', '-']],
+    body: catRows.length > 1 ? catRows : [['No expenses', '-']],
     theme: 'plain',
     headStyles: { textColor: [100, 100, 100] },
     columnStyles: { 1: { fontStyle: 'bold' } },
-    margin: { left: 14, right: 110 } // Keeps it compact on the left side
+    margin: { left: 14, right: 110 }
   });
-
   currentY = doc.lastAutoTable.finalY + 15;
 
-  // --- 3. Incoming Funds ---
+  // --- Passenger Manifest (If available) ---
+  if (t.passengers && t.passengers.length > 0) {
+      checkPageBreak(40);
+      doc.setFontSize(13);
+      doc.setTextColor(41, 128, 185);
+      doc.text("Passenger Manifest", 14, currentY);
+
+      const passRows = t.passengers.map(p => [
+        p.name, p.contact || '-', `Rs. ${Number(p.fee).toLocaleString('en-IN')}`, 
+        `Rs. ${Number(p.paid).toLocaleString('en-IN')}`, `Rs. ${Number(p.fee - p.paid).toLocaleString('en-IN')}`
+      ]);
+
+      doc.autoTable({
+        startY: currentY + 4,
+        head: [['Name', 'Contact', 'Total Fee', 'Amount Paid', 'Balance Due']],
+        body: passRows,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185] },
+        styles: { fontSize: 9 }
+      });
+      currentY = doc.lastAutoTable.finalY + 15;
+  }
+
+  // --- 4. Incoming Funds ---
+  checkPageBreak(40);
   doc.setFontSize(13);
   doc.setTextColor(39, 174, 96);
   doc.text("Incoming Funds & Collections", 14, currentY);
 
   const fundRows = t.funds.map(f => [
-    f.date || '-',
-    FUND_LABELS[f.type] || f.type,
-    f.client || '-',
-    f.mode || '-',
-    f.note || '-',
+    f.date || '-', FUND_LABELS[f.type] || f.type, f.client || '-', f.mode || '-', f.note || '-',
     `Rs. ${Number(f.amount).toLocaleString('en-IN')}`
   ]);
 
@@ -1497,10 +1723,10 @@ function exportTripPDF() {
     columnStyles: { 5: { halign: 'right', fontStyle: 'bold' } },
     styles: { fontSize: 9 }
   });
-
   currentY = doc.lastAutoTable.finalY + 15;
 
-  // --- 4. Day-Wise Expense Bifurcation ---
+  // --- 5. Day-Wise Expense Ledger ---
+  checkPageBreak(25);
   doc.setFontSize(13);
   doc.setTextColor(236, 112, 99);
   doc.text("Day-Wise Expense Ledger", 14, currentY);
@@ -1512,46 +1738,58 @@ function exportTripPDF() {
     doc.text("No expenses recorded for this trip.", 14, currentY);
   } else {
     t.days.forEach((day, index) => {
-      // Force a page break if we are near the bottom
-      if (currentY > 250) { 
-        doc.addPage(); 
-        currentY = 20; 
-      }
+      checkPageBreak(35);
       
       const dayTotal = day.entries.reduce((s, e) => s + Number(e.amount), 0);
-      
       doc.setFontSize(11);
       doc.setTextColor(45, 45, 78);
-      const dayTitle = `Day ${index + 1}: ${day.date || 'No Date'} ${day.label ? '(' + day.label + ')' : ''}`;
-      doc.text(`${dayTitle} | Day Total: Rs. ${dayTotal.toLocaleString('en-IN')}`, 14, currentY);
+      
+      const dayTitleText = `Day ${index + 1}: ${day.date || 'No Date'} ${day.label ? '(' + day.label + ')' : ''} | Day Total: Rs. ${dayTotal.toLocaleString('en-IN')}`;
+      const splitTitle = doc.splitTextToSize(dayTitleText, 182);
+      doc.text(splitTitle, 14, currentY);
+      currentY += (splitTitle.length * 6);
 
       const entryRows = day.entries.map(e => {
         const cat = DB.categories.find(c => c.id === e.category);
         return [
-          cat ? cat.label : e.category,
-          e.vendor || '-',
-          e.mode || '-',
-          e.note || '-',
-          `Rs. ${Number(e.amount).toLocaleString('en-IN')}`
+          e.date || day.date || '-', cat ? cat.label : e.category, e.vendor || '-', e.mode || '-',
+          e.note || '-', `Rs. ${Number(e.amount).toLocaleString('en-IN')}`
         ];
       });
 
       doc.autoTable({
-        startY: currentY + 3,
-        head: [['Category', 'Vendor', 'Mode', 'Note', 'Amount']],
-        body: entryRows.length ? entryRows : [['-', '-', '-', '-', 'Rs. 0']],
+        startY: currentY,
+        head: [['Date', 'Category', 'Vendor', 'Mode', 'Note', 'Amount']],
+        body: entryRows.length ? entryRows : [['-', '-', '-', '-', '-', 'Rs. 0']],
         theme: 'grid',
         headStyles: { fillColor: [240, 240, 245], textColor: [50, 50, 50] },
-        columnStyles: { 4: { halign: 'right', fontStyle: 'bold' } },
+        columnStyles: { 5: { halign: 'right', fontStyle: 'bold' } },
         styles: { fontSize: 9 }
       });
-
       currentY = doc.lastAutoTable.finalY + 10;
     });
   }
 
-  // Generate and Download
-  doc.save(`${t.name.replace(/\s+/g,'_')}_Account_Report.pdf`);
+  // --- Pagination & Headers on Continuation Pages ---
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+    
+    if (i > 1) {
+      doc.setFontSize(9);
+      doc.setTextColor(150);
+      doc.text(`MDA Account Report: ${t.name}`, 14, 10);
+    }
+    
+    doc.setFontSize(9);
+    doc.setTextColor(150);
+    doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
+  }
+
+  // Generate and Download with Date
+  const fDate = new Date().toISOString().split("T")[0];
+  doc.save(`${t.name.replace(/\s+/g,'_')}_Account_Report_${fDate}.pdf`);
 }
 
 function shareWhatsApp() {
