@@ -2439,13 +2439,19 @@ async function addEntry() {
   const entryObj = { id, category, amount: amt, vendor, mode, note, date, paid_by: paidBy, receipt_url };
 
   if (isOnline && sb && currentUser && currentUser.id !== 'guest_user') {
-    const insertReq = {
+    let insertReq = {
       trip_id: t.id, day_id: _addEntryDayId, company_id: currentUser.company_id, created_by: currentUser.id,
       category_id: category, amount: amt, vendor, payment_mode: mode, note, expense_date: date,
       paid_by: paidBy, receipt_url: receipt_url
     };
-    const { data, error } = await sb.from('expenses').insert(insertReq).select().single();
-    if (!error && data) entryObj.id = data.id;
+    let { data, error } = await sb.from('expenses').insert(insertReq).select().single();
+    if (error && error.message && error.message.includes('column')) {
+      delete insertReq.paid_by;
+      delete insertReq.receipt_url;
+      const retry = await sb.from('expenses').insert(insertReq).select().single();
+      data = retry.data;
+    }
+    if (data) entryObj.id = data.id;
   }
 
   t.days.find(d => d.id === _addEntryDayId).entries.push(entryObj);
@@ -2904,12 +2910,18 @@ async function confirmSaveSmartExpense() {
     const entryObj = { id: expId, category, amount: amt, vendor, mode, note, date, paid_by: paidBy, receipt_url: null };
 
     if (isOnline && sb && currentUser && currentUser.id !== 'guest_user') {
-      const insertReq = {
+      let insertReq = {
         trip_id: t.id, day_id: targetDay.id, company_id: currentUser.company_id, created_by: currentUser.id,
         category_id: category, amount: amt, vendor, payment_mode: mode, note, expense_date: date,
         paid_by: paidBy, receipt_url: null
       };
-      const { data } = await sb.from('expenses').insert(insertReq).select().single();
+      let { data, error } = await sb.from('expenses').insert(insertReq).select().single();
+      if (error && error.message && error.message.includes('column')) {
+        delete insertReq.paid_by;
+        delete insertReq.receipt_url;
+        const retry = await sb.from('expenses').insert(insertReq).select().single();
+        data = retry.data;
+      }
       if (data) entryObj.id = data.id;
     }
 
