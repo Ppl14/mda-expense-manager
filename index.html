@@ -5,13 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <meta name="theme-color" content="#0F172A"/>
 <meta name="mobile-web-app-capable" content="yes"/>
-<link rel="manifest" href="data:application/manifest+json;charset=utf-8,{"name": "MDA Expense Manager Pro", "short_name": "MDA Expense", "start_url": ".", "display": "standalone", "background_color": "#0B0F19", "theme_color": "#0F172A", "icons": [{"src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%23141C2E'/><text x='50%' y='55%' font-size='220' text-anchor='middle' dominant-baseline='middle'>\ud83c\udfd5\ufe0f</text></svg>", "sizes": "512x512", "type": "image/svg+xml"}]}"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="MDA Expense"/>
-<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%23141C2E'/><text x='50%' y='55%' font-size='220' text-anchor='middle' dominant-baseline='middle'>🏕️</text></svg>"/>
-
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <title>MDA Expense Manager Pro</title>
 
 <!-- External Dependencies -->
@@ -866,6 +862,24 @@
 
 <div id="toast-container"></div>
 
+<!-- In-App Notification Banner (Works in all browsers & iframes) -->
+<div id="inapp-notif-banner" style="display:none; position:fixed; top:12px; left:50%; transform:translateX(-50%); width:92%; max-width:440px; z-index:9999; background:#141C2E; border:1px solid #10B981; border-radius:14px; box-shadow:0 12px 36px rgba(0,0,0,0.7); padding:14px 16px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+    <div style="display:flex; gap:12px; align-items:center;">
+      <span style="font-size:26px; line-height:1;">🏕️</span>
+      <div>
+        <div style="font-weight:700; color:var(--text-main); font-size:14px;" id="inapp-notif-title">MDA Daily Expense Reminder</div>
+        <div style="color:var(--text-muted); font-size:12px; margin-top:2px;" id="inapp-notif-body">Tour Captain, don't forget to record today's trek expenses, fuel, and client collections!</div>
+      </div>
+    </div>
+    <button class="icon-btn-x" onclick="dismissInAppNotif()">×</button>
+  </div>
+  <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
+    <button class="btn btn-ghost btn-inline" style="padding:6px 12px; font-size:12px;" onclick="dismissInAppNotif()">Dismiss</button>
+    <button class="btn btn-primary btn-inline" style="padding:6px 14px; font-size:12px;" onclick="openQuickAddFromNotif()">Log Expenses Now</button>
+  </div>
+</div>
+
 <!-- Confirmation Dialog Modal -->
 <div class="modal-overlay hidden" id="modal-confirm" onclick="closeModal('modal-confirm')">
   <div class="modal-box" style="max-width:380px" onclick="event.stopPropagation()">
@@ -1424,7 +1438,10 @@
       <button class="btn btn-primary" style="margin-top:12px;" onclick="triggerAppInstall()">📲 Tap to Install on Android Now</button>
     </div>
 
-    <button class="btn btn-ghost" onclick="closeModal('modal-install-guide')">Got It</button>
+    <div style="margin-bottom:12px;">
+      <button class="btn btn-primary" onclick="copyAppUrlForPhone()" style="background: linear-gradient(135deg, #059669 0%, #0284C7 100%);">📋 Copy App URL (Paste in Safari / Chrome)</button>
+    </div>
+    <button class="btn btn-ghost" onclick="closeModal('modal-install-guide')">Close Guide</button>
   </div>
 </div>
 <div class="modal-overlay hidden" id="modal-add-fund" onclick="closeModal('modal-add-fund')">
@@ -3886,7 +3903,32 @@ document.getElementById('login-password')?.addEventListener('keydown', function(
 // --- PWA INSTALLATION & DAILY NOTIFICATION REMINDER SYSTEM ---
 let deferredInstallPrompt = null;
 
-window.addEventListener('beforeinstallprompt', (e) => {
+// Inject manifest dynamically via JavaScript to prevent HTML attribute quotes spilling
+function injectPwaManifest() {
+  try {
+    const manifestObj = {
+      name: "MDA Expense Manager Pro",
+      short_name: "MDA Expense",
+      start_url: window.location.href,
+      display: "standalone",
+      background_color: "#0B0F19",
+      theme_color: "#0F172A",
+      icons: [{
+        src: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%23141C2E'/><text x='50%' y='55%' font-size='220' text-anchor='middle' dominant-baseline='middle'>%F0%9F%8F%95%EF%B8%8F</text></svg>",
+        sizes: "512x512",
+        type: "image/svg+xml"
+      }]
+    };
+    const blob = new Blob([JSON.stringify(manifestObj)], { type: "application/manifest+json" });
+    const manifestUrl = URL.createObjectURL(blob);
+    const link = document.createElement("link");
+    link.rel = "manifest";
+    link.href = manifestUrl;
+    document.head.appendChild(link);
+  } catch (e) {}
+}
+
+window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   deferredInstallPrompt = e;
   const banner = document.getElementById('install-banner');
@@ -3905,28 +3947,57 @@ function openInstallModal() {
   openModal('modal-install-guide');
 }
 
+function copyAppUrlForPhone() {
+  const url = window.location.href;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(function() {
+      showToast('App URL copied to clipboard! Open Safari or Chrome to install.', 'success');
+    }).catch(function() {
+      fallbackCopyText(url);
+    });
+  } else {
+    fallbackCopyText(url);
+  }
+}
+
+function fallbackCopyText(text) {
+  const input = document.createElement('input');
+  input.value = text;
+  document.body.appendChild(input);
+  input.select();
+  try {
+    document.execCommand('copy');
+    showToast('App URL copied! Open Safari or Chrome to install.', 'success');
+  } catch (err) {
+    showToast('Please copy URL from your address bar.', 'info');
+  }
+  document.body.removeChild(input);
+}
+
 async function triggerAppInstall() {
   if (deferredInstallPrompt) {
     deferredInstallPrompt.prompt();
-    const outcomeObj = await deferredInstallPrompt.userChoice;
-    if (outcomeObj && outcomeObj.outcome === 'accepted') {
-      showToast('Thank you for installing MDA Expense Pro!', 'success');
-      dismissInstallBanner();
-    }
+    try {
+      const outcomeObj = await deferredInstallPrompt.userChoice;
+      if (outcomeObj && outcomeObj.outcome === 'accepted') {
+        showToast('Thank you for installing MDA Expense Pro!', 'success');
+        dismissInstallBanner();
+      }
+    } catch(err) {}
     deferredInstallPrompt = null;
   } else {
     openInstallModal();
   }
 }
 
-// Notification Settings Management
+// Notification Settings
 function getNotificationSettings() {
   try {
     const raw = localStorage.getItem('mda_notif_settings');
     if (raw) return JSON.parse(raw);
   } catch (e) {}
   return {
-    enabled: false,
+    enabled: true, // Default to true so captain never forgets
     time: '21:30',
     lastNotifiedDate: null
   };
@@ -3961,9 +4032,7 @@ function updateNotificationUI() {
 
   if (timeInput && settings.time) timeInput.value = settings.time;
 
-  const hasPermission = ('Notification' in window) && Notification.permission === 'granted';
-
-  if (settings.enabled && hasPermission) {
+  if (settings.enabled) {
     if (badge) {
       badge.textContent = 'Active (' + formatTime12h(settings.time) + ')';
       badge.style.background = 'rgba(16,185,129,0.15)';
@@ -3975,7 +4044,7 @@ function updateNotificationUI() {
     }
   } else {
     if (badge) {
-      badge.textContent = hasPermission ? 'Disabled' : 'Permission Required';
+      badge.textContent = 'Disabled';
       badge.style.background = 'rgba(244,63,94,0.15)';
       badge.style.color = 'var(--danger)';
     }
@@ -3987,92 +4056,128 @@ function updateNotificationUI() {
 }
 
 async function toggleDailyNotification() {
-  if (!('Notification' in window)) {
-    showToast('Notifications are not supported in this browser.', 'error');
-    openInstallModal();
-    return;
-  }
-
   const settings = getNotificationSettings();
 
-  if (settings.enabled && Notification.permission === 'granted') {
+  if (settings.enabled) {
     settings.enabled = false;
     localStorage.setItem('mda_notif_settings', JSON.stringify(settings));
     updateNotificationUI();
-    showToast('Nightly expense reminder disabled', 'info');
+    showToast('Nightly reminder paused', 'info');
     return;
   }
 
-  let perm = Notification.permission;
-  if (perm !== 'granted') {
-    perm = await Notification.requestPermission();
+  // Request native permission if available
+  if ('Notification' in window) {
+    try {
+      if (Notification.permission !== 'granted') {
+        await Notification.requestPermission();
+      }
+    } catch (e) {
+      console.warn('Native notification permission error:', e);
+    }
   }
 
-  if (perm === 'granted') {
-    settings.enabled = true;
-    localStorage.setItem('mda_notif_settings', JSON.stringify(settings));
-    updateNotificationUI();
-    showToast('Daily reminder active! You will be notified at ' + formatTime12h(settings.time), 'success');
-    triggerReminderNotification(true);
+  settings.enabled = true;
+  localStorage.setItem('mda_notif_settings', JSON.stringify(settings));
+  updateNotificationUI();
+  showToast('Daily reminder active for ' + formatTime12h(settings.time) + ' every night!', 'success');
+  // Trigger test immediately so user sees and hears it work
+  triggerReminderNotification(true);
+}
+
+// Synthesize pleasant chime audio (100% offline & canvas safe)
+function playChimeSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+    osc.frequency.exponentialRampToValueAtTime(783.99, ctx.currentTime + 0.15); // G5
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.45);
+  } catch (e) {}
+}
+
+function dismissInAppNotif() {
+  const b = document.getElementById('inapp-notif-banner');
+  if (b) b.style.display = 'none';
+}
+
+function openQuickAddFromNotif() {
+  dismissInAppNotif();
+  if (currentTripId) {
+    switchTripTab('days');
+    openSmartAddModal();
   } else {
-    settings.enabled = false;
-    localStorage.setItem('mda_notif_settings', JSON.stringify(settings));
-    updateNotificationUI();
-    showToast('Notification permission was not granted.', 'error');
+    switchMainScreen('screen-trips', 'nav-trips');
+    showToast('Open a trip to add your daily expenses!', 'info');
   }
 }
 
 function triggerReminderNotification(isTest) {
-  if (!('Notification' in window)) return;
-  if (Notification.permission !== 'granted') {
-    showToast('Please enable notification permission first.', 'error');
-    return;
-  }
-
-  const title = isTest ? 'Test: MDA Expense Reminder' : 'MDA Daily Expense Reminder';
-  const options = {
-    body: isTest 
-      ? 'Notifications are working! You will receive this daily alert to log your trek expenses.' 
-      : 'Tour Captain, do not forget to record today expenses, fuel, and client collections!',
-    icon: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23141C2E'/><text x='50%' y='55%' font-size='50' text-anchor='middle' dominant-baseline='middle'>🏕️</text></svg>",
-    badge: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2310B981'/><text x='50%' y='55%' font-size='50' text-anchor='middle' dominant-baseline='middle'>₹</text></svg>",
-    tag: 'mda-daily-reminder',
-    renotify: true
-  };
-
-  try {
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ type: 'SHOW_NOTIFICATION', title: title, options: options });
-    } else {
-      new Notification(title, options);
-    }
-  } catch (e) {
-    if (navigator.serviceWorker) {
-      navigator.serviceWorker.ready.then(function(reg) {
-        reg.showNotification(title, options);
-      }).catch(function() {});
-    }
-  }
-
+  playChimeSound();
   if (navigator.vibrate) {
-    navigator.vibrate([150, 100, 150]);
+    try { navigator.vibrate([150, 80, 150]); } catch (e) {}
+  }
+
+  const title = isTest ? '🧪 Test Alert: MDA Expense Reminder' : '🏕️ MDA Daily Expense Reminder';
+  const bodyText = isTest
+    ? 'Notification test successful! You will receive this alert daily at ' + formatTime12h(getNotificationSettings().time) + ' to log trek expenses.'
+    : 'Tour Captain, do not forget to record today expenses, vehicle diesel, and client collections!';
+
+  // 1. Show In-App Visual Alert Banner (Always works in iframe, iOS, and Android)
+  const banner = document.getElementById('inapp-notif-banner');
+  const titleEl = document.getElementById('inapp-notif-title');
+  const bodyEl = document.getElementById('inapp-notif-body');
+  if (banner && titleEl && bodyEl) {
+    titleEl.textContent = title;
+    bodyEl.textContent = bodyText;
+    banner.style.display = 'block';
+  }
+
+  // 2. Also trigger native browser/phone notification if permitted
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const options = {
+      body: bodyText,
+      icon: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23141C2E'/><text x='50%' y='55%' font-size='50' text-anchor='middle' dominant-baseline='middle'>🏕️</text></svg>",
+      badge: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2310B981'/><text x='50%' y='55%' font-size='50' text-anchor='middle' dominant-baseline='middle'>₹</text></svg>",
+      tag: 'mda-daily-reminder',
+      renotify: true
+    };
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'SHOW_NOTIFICATION', title: title, options: options });
+      } else {
+        new Notification(title, options);
+      }
+    } catch (e) {
+      try {
+        if (navigator.serviceWorker) {
+          navigator.serviceWorker.ready.then(function(reg) {
+            reg.showNotification(title, options);
+          });
+        }
+      } catch (err) {}
+    }
   }
 }
 
 function sendTestNotification() {
-  if (!('Notification' in window) || Notification.permission !== 'granted') {
-    toggleDailyNotification();
-    return;
-  }
   triggerReminderNotification(true);
-  showToast('Test notification sent! Check your notification bar.', 'success');
+  showToast('Test alert triggered with chime & banner!', 'success');
 }
 
-// Check every 40 seconds for scheduled daily reminder
+// Check every 30 seconds for scheduled nightly reminder
 function checkAndTriggerDailyReminder() {
   const settings = getNotificationSettings();
   if (!settings.enabled) return;
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
   const now = new Date();
   const currentHHMM = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
@@ -4100,8 +4205,9 @@ function initServiceWorker() {
 }
 
 // App Startup
+injectPwaManifest();
 initServiceWorker();
-setInterval(checkAndTriggerDailyReminder, 40000);
+setInterval(checkAndTriggerDailyReminder, 30000);
 updateNotificationUI();
 initApp();
 </script>
